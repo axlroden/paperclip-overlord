@@ -168,7 +168,7 @@ export class OverlordEngine {
   }
 
   private build() {
-    const scenery = buildScenery(this.art.atlas);
+    const scenery = buildScenery(this.art.atlas, this.art.cast);
     this.props = scenery.props;
     this.app.stage.addChild(this.backdrop, this.world);
     this.actorsLayer.sortableChildren = true;

@@ -360,6 +360,25 @@
         "description": "burnt to a smoking black charred cartoon skeleton",
         "no_background": true
       }
+    },
+    {
+      "id": "bg-coal-mine",
+      "kind": "image",
+      "cost": 1,
+      "note": "Backdrops test: coal mine room, 202x92, palette forced from the cast",
+      "params": {
+        "description": "interior of a dark underground coal mine chamber, rough rock walls with black coal seams, wooden support beams, a mine cart on rails, hanging lanterns, empty room with no people, game background",
+        "image_size": {
+          "width": 202,
+          "height": 92
+        },
+        "view": "low top-down",
+        "outline": "selective outline",
+        "shading": "detailed shading",
+        "detail": "highly detailed",
+        "no_background": false,
+        "color_image": "palette.png"
+      }
     }
   ]
 }

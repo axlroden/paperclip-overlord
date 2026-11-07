@@ -77,7 +77,7 @@ function frame(r: R, b: Box, label: string) {
   pixelText(r, label, x + 3, y + 3, C.yellow, null);
 }
 
-export function buildScenery(sheet: Spritesheet): Scenery {
+export function buildScenery(sheet: Spritesheet, cast: Spritesheet): Scenery {
   const background = new Container();
   const foreground = new Container();
   const props: AnimatedProp[] = [];
@@ -182,7 +182,20 @@ export function buildScenery(sheet: Spritesheet): Scenery {
     frame(r, ALTAR, "PETITIONS");
   });
 
-  for (const s of SITES) buildSite(s.id, SITE_BOXES[s.id], k);
+  for (const s of SITES) {
+    // a generated backdrop (PixelLab, at the characters' pixel density) replaces the tile-built room
+    const bg = cast.textures[`bg-${s.id}/0`];
+    if (bg) {
+      const b = SITE_BOXES[s.id];
+      const sprite = new Sprite(bg);
+      sprite.anchor.set(0, 0);
+      sprite.position.set(b.x, b.y);
+      sprite.width = b.w;
+      sprite.height = b.h;
+      background.addChild(sprite);
+      k.paint(`site-frame-${s.id}`, b, (r) => frame(r, b, s.name.toUpperCase()));
+    } else buildSite(s.id, SITE_BOXES[s.id], k);
+  }
   k.paint("ticker", { x: 0, y: TICKER_Y, w: W, h: H - TICKER_Y }, (r) => r(0, TICKER_Y, W, H - TICKER_Y, C.ink));
   return { background, foreground, props };
 }

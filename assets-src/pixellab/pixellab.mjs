@@ -73,6 +73,14 @@ const charOf = (stepId) => {
 };
 
 const kinds = {
+  async image(step, out) {
+    const params = { ...step.params };
+    if (params.color_image) params.color_image = b64png(params.color_image);
+    const r = await api("POST", "/create-image-pixflux", params);
+    fs.mkdirSync(out, { recursive: true });
+    fs.writeFileSync(path.join(out, "0.png"), Buffer.from(r.image.base64, "base64"));
+    return { usage: r.usage ?? null };
+  },
   async character(step, out) {
     const r = await api("POST", "/create-character-v3", step.params);
     state[step.id] = { character_id: r.character_id, started: new Date().toISOString() };
