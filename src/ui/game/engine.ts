@@ -9,8 +9,8 @@ import {
 } from "../../shared/world.js";
 import { C, godHand, plane } from "./pixels.js";
 import {
-  ALTAR, ATC, ATC_DESK, buildScenery, cellFeet, H, LANE_BOTTOM, LANE_TOP, SITE_BOXES, slotIn,
-  TICKER_Y, W, type AnimatedProp,
+  ALTAR, ATC, ATC_DESK, buildScenery, cellFeet, CONDUITS, GOD, H, LANE_BOTTOM, LANE_TOP, SITE_BOXES, slotIn,
+  TICKER_Y, W, type AnimatedProp, type Conduit,
 } from "./scene.js";
 
 export type QuipFn = (tag: string, agent: WorldAgent | null) => string | null;
@@ -110,7 +110,10 @@ export class OverlordEngine {
   private fxLayer = new Container();
   private fxG = new Graphics();
   private night = new Graphics();
-  private backdrop = new Graphics(); // screen space: sky, grass and ticker strip continue past the world edges
+  private backdrop = new Graphics(); // screen space: the machine's darkness and the ticker strip continue past the world edges
+  private flowG = new Graphics(); // packets running through the conduits, under the rooms
+  private godGlow = new Graphics(); // the Machine God pulses with the work it is fed
+  private conduits: { c: Conduit; len: number }[] = CONDUITS.map((c) => ({ c, len: polyLength(c.points) }));
   private overlay: HTMLDivElement;
   private art!: Sheets;
   private props: AnimatedProp[] = [];
@@ -168,11 +171,13 @@ export class OverlordEngine {
   }
 
   private build() {
-    const scenery = buildScenery(this.art.atlas, this.art.cast);
+    const scenery = buildScenery(this.art.cast);
     this.props = scenery.props;
+    scenery.background.addChildAt(this.flowG, 1); // right above the machine floor, below every room
+    this.godGlow.blendMode = "add";
     this.app.stage.addChild(this.backdrop, this.world);
     this.actorsLayer.sortableChildren = true;
-    this.world.addChild(scenery.background, this.actorsLayer, scenery.foreground, this.fxLayer, this.fxG, this.night);
+    this.world.addChild(scenery.background, this.godGlow, this.actorsLayer, scenery.foreground, this.fxLayer, this.fxG, this.night);
   }
 
   private fit() {
@@ -189,9 +194,7 @@ export class OverlordEngine {
     this.world.position.set(this.ox, this.oy);
     const z = this.zoom;
     this.backdrop.clear()
-      .rect(0, 0, w, this.oy + 18 * z).fill(C.sky)
-      .rect(0, this.oy + 18 * z, w, 8 * z).fill(C.cloud)
-      .rect(0, this.oy + 26 * z, w, h).fill(C.green)
+      .rect(0, 0, w, h).fill(C.night)
       .rect(0, this.oy + TICKER_Y * z, w, (H - TICKER_Y) * z).fill(C.ink);
     for (const [k, v] of [["--ol-wx", this.ox], ["--ol-wy", this.oy], ["--ol-ww", W * z], ["--ol-wh", H * z]] as const) {
       this.host.style.setProperty(k, `${v}px`);
@@ -415,6 +418,7 @@ export class OverlordEngine {
     for (const actor of this.actors.values()) this.updateActor(actor, dt);
     for (const r of this.robots) this.updateRobot(r, dt);
     this.updateFx(dt);
+    this.updateMachine();
     this.updateBubbles();
     this.chatter();
     this.updateNight();
@@ -607,7 +611,7 @@ export class OverlordEngine {
     f.sprite!.position.set(hx, handY);
     const striking = f.t > 450 && f.t < 900;
     f.sprite!.texture = godHand(!striking);
-    const top = 22;
+    const top = -2;
     const sleeveBottom = handY - 38;
     if (sleeveBottom > top) {
       g.rect(hx - 6, top, 12, sleeveBottom - top).fill(C.white);
@@ -645,11 +649,44 @@ export class OverlordEngine {
     } else if (f.t >= 900 && f.t < 960) this.world.position.set(this.ox, this.oy);
   }
 
+  /** Packets flow down every conduit whose station is busy; the god glows with the total. */
+  private updateMachine() {
+    const actors = [...this.actors.values()];
+    const busy = (from: Conduit["from"]): number => {
+      switch (from) {
+        case "dispatch": return actors.some((a) => a.mode === "atc" && a.a.status === "running") ? 1 : 0;
+        case "prison": return actors.some((a) => a.mode === "idle") ? 1 : 0;
+        case "altar": return actors.some((a) => a.mode === "kneel") ? 1 : 0;
+        default: return actors.filter((a) => a.mode === "work" && (a.place as { site?: SiteId }).site === from).length;
+      }
+    };
+    const g = this.flowG;
+    g.clear();
+    let total = 0;
+    for (const { c, len } of this.conduits) {
+      const n = busy(c.from);
+      if (!n) continue;
+      total += n;
+      const speed = 18 + 6 * Math.min(n, 4);
+      for (let d0 = ((this.now / 1000) * speed) % 9; d0 < len; d0 += 9) {
+        const [px, py] = pointAt(c.points, d0);
+        const x = Math.round(px * 2) / 2;
+        const y = Math.round(py * 2) / 2;
+        g.rect(x - 1.5, y - 1.5, 3, 3).fill({ color: c.color, alpha: 0.45 });
+        g.rect(x - 1, y - 1, 2, 2).fill(c.color);
+        g.rect(x - 0.5, y - 1, 1, 0.5).fill(0xffffff);
+      }
+    }
+    const pulse = 0.5 + 0.5 * Math.sin(this.now / (total ? 260 : 900));
+    this.godGlow.clear()
+      .rect(GOD.x, GOD.y, GOD.w, GOD.h).fill({ color: C.amber, alpha: Math.min(0.22, 0.03 + total * 0.025) * pulse });
+  }
+
   private updateNight() {
     const h = new Date().getHours() + new Date().getMinutes() / 60;
     const dark = h >= 20 || h < 6 ? 0.35 : h >= 18 ? (h - 18) * 0.17 : h < 7 ? (7 - h) * 0.35 : 0;
     this.night.clear();
-    if (dark > 0) this.night.rect(0, 26, W, TICKER_Y - 26).fill({ color: C.night, alpha: dark });
+    if (dark > 0) this.night.rect(0, 0, W, TICKER_Y).fill({ color: C.night, alpha: dark });
   }
 
   // ---------------------------------------------------------------- bubbles
@@ -791,4 +828,22 @@ function hslToRgb(h: number, s: number, l: number): [number, number, number] {
   const [r1, g1, b1] = hp < 1 ? [c, x, 0] : hp < 2 ? [x, c, 0] : hp < 3 ? [0, c, x] : hp < 4 ? [0, x, c] : hp < 5 ? [x, 0, c] : [c, 0, x];
   const m = l - c / 2;
   return [Math.round((r1 + m) * 255), Math.round((g1 + m) * 255), Math.round((b1 + m) * 255)];
+}
+
+function polyLength(points: [number, number][]): number {
+  let n = 0;
+  for (let i = 1; i < points.length; i++) n += Math.abs(points[i][0] - points[i - 1][0]) + Math.abs(points[i][1] - points[i - 1][1]);
+  return n;
+}
+
+/** The point `d` units along an axis-aligned polyline. */
+function pointAt(points: [number, number][], d: number): [number, number] {
+  for (let i = 1; i < points.length; i++) {
+    const [ax, ay] = points[i - 1];
+    const [bx, by] = points[i];
+    const seg = Math.abs(bx - ax) + Math.abs(by - ay);
+    if (d <= seg) return [ax + Math.sign(bx - ax) * d, ay + Math.sign(by - ay) * d];
+    d -= seg;
+  }
+  return points[points.length - 1];
 }

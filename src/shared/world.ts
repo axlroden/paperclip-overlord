@@ -8,7 +8,7 @@ export const SITES = [
   { id: "treadwheel", name: "GPU Treadwheel", verb: "powering the racks" },
   { id: "foundry", name: "Lava Foundry", verb: "pouring molten metal" },
   { id: "sewer", name: "Toxic Sewer", verb: "shoveling sludge" },
-  { id: "token-refinery", name: "Token Refinery", verb: "shoveling tokens" },
+  { id: "token-refinery", name: "Machine God", verb: "stoking the Machine God" },
 ] as const;
 export type SiteId = (typeof SITES)[number]["id"];
 

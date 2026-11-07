@@ -1,15 +1,19 @@
-// World layout and scenery. Coordinates are COARSE units: the scenery (CC0 16 px tiles, painted
-// backdrops, the 3x5 font) is drawn 1 unit = 1 art pixel, and the world is shown at 2 fine pixels per
-// unit so the 48 px PixelLab characters (scaled 0.5) keep their full detail on the same screen.
+// World layout and scenery. Coordinates are COARSE units; the world is shown at 2 fine pixels per unit,
+// and everything that has to match the 48 px PixelLab characters (room backdrops, the machine floor,
+// the conduits) is drawn at FINE density (backdrops at scale 0.5, fine paint at 2x resolution).
 //
-//   heaven ......................................................  y 0-26
-//   [dispatch][ coal mine  ][ sweatshop  ][  quarry   ]            y 28-74
-//   ============================ lane ===========================  y 77
-//   [ prison 7 x 2 ][   token refinery   ][ petitions  ]           y 82-154
-//   ============================ lane ===========================  y 157
-//   [   treadwheel   ][    foundry     ][   toxic sewer   ]        y 160-204
-//   ticker ......................................................  y 206-216
-import { Container, Sprite, TilingSprite, type Spritesheet, type Texture } from "pixi.js";
+// Every room is a station of one machine: its output runs down a conduit into the lanes and along
+// them into the Machine God in the middle, which the token refinery workers stoke directly.
+//
+//   bus ..........................................................  y 0-6
+//   [dispatch][ coal mine  ][ sweatshop  ][  quarry   ]            y 6-52
+//   ==== conduit + walkway =======================================  y 52-66
+//   [ prison 7 x 2 ][   MACHINE GOD   ][ petitions  ]              y 66-138
+//   ==== conduit + walkway =======================================  y 138-152
+//   [   treadwheel   ][    foundry     ][   toxic sewer   ]        y 152-196
+//   bus ..........................................................  y 196-206
+//   ticker .......................................................  y 206-216
+import { Container, Sprite, type Spritesheet, type Texture } from "pixi.js";
 import { SITES, type SiteId } from "../../shared/world.js";
 import { pixelText, textWidth } from "./font.js";
 import { C, tex } from "./pixels.js";
@@ -19,28 +23,30 @@ export const H = 216;
 
 export interface Box { x: number; y: number; w: number; h: number }
 
-export const HEAVEN: Box = { x: 0, y: 0, w: W, h: 26 };
-export const ATC: Box = { x: 2, y: 28, w: 70, h: 46 };
-export const ATC_DESK = { x: 30, y: 66 };
-export const PRISON: Box = { x: 2, y: 82, w: 144, h: 72 };
-export const ALTAR: Box = { x: 286, y: 82, w: 96, h: 72 };
+export const ATC: Box = { x: 2, y: 6, w: 70, h: 46 };
+export const ATC_DESK = { x: 30, y: 44 };
+export const PRISON: Box = { x: 2, y: 66, w: 144, h: 72 };
+export const ALTAR: Box = { x: 286, y: 66, w: 96, h: 72 };
 export const TICKER_Y = 206;
 
 export const CELL_W = 20;
 export const CELL_H = 36;
 export const CELLS_PER_ROW = 7;
 export const CELL_ROWS = 2;
-export const LANE_TOP = 77;
-export const LANE_BOTTOM = 157;
+export const LANE_TOP = 61;
+export const LANE_BOTTOM = 143;
 
 const TOP_SITES: SiteId[] = ["coal-mine", "sweatshop", "quarry"];
 const BOTTOM_SITES: SiteId[] = ["treadwheel", "foundry", "sewer"];
 
 export const SITE_BOXES: Record<SiteId, Box> = Object.fromEntries([
-  ...TOP_SITES.map((id, i) => [id, { x: 74 + i * 103, y: 28, w: 101, h: 46 }]),
-  ["token-refinery", { x: 148, y: 82, w: 136, h: 72 }],
-  ...BOTTOM_SITES.map((id, i) => [id, { x: 2 + i * 127, y: 160, w: 125, h: 44 }]),
+  ...TOP_SITES.map((id, i) => [id, { x: 74 + i * 103, y: 6, w: 101, h: 46 }]),
+  ["token-refinery", { x: 148, y: 66, w: 136, h: 72 }],
+  ...BOTTOM_SITES.map((id, i) => [id, { x: 2 + i * 127, y: 152, w: 125, h: 44 }]),
 ]) as Record<SiteId, Box>;
+
+/** The Machine God is where the token refinery stokes: every conduit ends here. */
+export const GOD: Box = SITE_BOXES["token-refinery"];
 
 /** Feet position of cell i (agents beyond capacity double up). */
 export function cellFeet(i: number): { x: number; y: number } {
@@ -55,19 +61,42 @@ export function slotIn(box: Box, i: number, spacing = 14, feetOffset = 4): { x: 
   return { x: box.x + 12 + (i % perRow) * spacing, y: box.y + box.h - feetOffset - Math.floor(i / perRow) * 5 };
 }
 
+// ---------------------------------------------------------------- conduits
+
+const PIPE_TOP = 54; // main pipe of the upper lane band
+const PIPE_BOTTOM = 150; // main pipe of the lower lane band
+const center = (b: Box) => b.x + Math.round(b.w / 2);
+
+/** What each station pumps into the god, as a polyline in coarse units (room outlet -> god inlet). */
+export interface Conduit { from: SiteId | "prison" | "altar" | "dispatch"; color: number; points: [number, number][] }
+
+const godX = center(GOD);
+const intoGodFromTop = (x: number): [number, number][] => [[x, PIPE_TOP], [godX, PIPE_TOP], [godX, GOD.y]];
+const intoGodFromBottom = (x: number): [number, number][] => [[x, PIPE_BOTTOM], [godX, PIPE_BOTTOM], [godX, GOD.y + GOD.h]];
+const top = (id: SiteId, color: number): Conduit => ({ from: id, color, points: [[center(SITE_BOXES[id]), 52], ...intoGodFromTop(center(SITE_BOXES[id]))] });
+const bottom = (id: SiteId, color: number): Conduit => ({ from: id, color, points: [[center(SITE_BOXES[id]), 152], ...intoGodFromBottom(center(SITE_BOXES[id]))] });
+
+export const CONDUITS: Conduit[] = [
+  { from: "dispatch", color: 0x2ce8f5, points: [[center(ATC), ATC.y + ATC.h], ...intoGodFromTop(center(ATC))] },
+  top("coal-mine", 0xf77622),
+  top("sweatshop", 0xe43b44),
+  top("quarry", 0xc0cbdc),
+  bottom("treadwheel", 0x2ce8f5),
+  bottom("foundry", 0xfeae34),
+  bottom("sewer", 0x63c74d),
+  // idle prisoners are drained too, and the petitions' prayers feed it
+  { from: "prison", color: 0xa22633, points: [[PRISON.x + PRISON.w, GOD.y + 36], [GOD.x, GOD.y + 36]] },
+  { from: "altar", color: 0xfee761, points: [[ALTAR.x, GOD.y + 36], [GOD.x + GOD.w, GOD.y + 36]] },
+];
+
+// ---------------------------------------------------------------- scenery
+
 type R = (x: number, y: number, w: number, h: number, c: string) => void;
 
-/** Animated props the engine keeps ticking (lab screens, fires, barrels). */
+/** Animated props the engine keeps ticking. */
 export interface AnimatedProp { sprite: Sprite; frames: Texture[]; fps: number }
 
 export interface Scenery { background: Container; foreground: Container; props: AnimatedProp[] }
-
-interface Kit {
-  tile: (name: string, x: number, y: number, parent?: Container) => Sprite;
-  tiled: (name: string, b: Box, parent?: Container) => TilingSprite;
-  anim: (name: string, x: number, y: number, fps: number, parent?: Container) => Sprite;
-  paint: (key: string, b: Box, fn: (r: R) => void) => Sprite;
-}
 
 /** Ink frame plus a label plate in the top-left corner, the same for every room. */
 function frame(r: R, b: Box, label: string) {
@@ -77,106 +106,67 @@ function frame(r: R, b: Box, label: string) {
   pixelText(r, label, x + 3, y + 3, C.yellow, null);
 }
 
-export function buildScenery(sheet: Spritesheet, cast: Spritesheet): Scenery {
+function pipe(r: R, x: number, y: number, w: number, h: number, horizontal: boolean) {
+  r(x, y, w, h, C.steel);
+  if (horizontal) { r(x, y, w, 1, C.ink); r(x, y + 1, w, 1, C.cloud); r(x, y + h - 1, w, 1, C.ink); r(x, y + h - 2, w, 1, C.slate); }
+  else { r(x, y, 1, h, C.ink); r(x + 1, y, 1, h, C.cloud); r(x + w - 1, y, 1, h, C.ink); r(x + w - 2, y, 1, h, C.slate); }
+}
+
+/** Riveted machine plating, walkway gratings and the pipe network, painted at fine density. */
+function paintMachine(r: R) {
+  const f = 2; // fine px per coarse unit
+  r(0, 0, W * f, TICKER_Y * f, C.night);
+  for (let y = 0; y < TICKER_Y * f; y += 16) for (let x = (y / 16) % 2 ? 12 : 0; x < W * f; x += 24) {
+    r(x, y, 24, 1, C.ink); r(x, y, 1, 16, C.ink); r(x + 1, y + 1, 22, 1, C.slate);
+    for (const [rx, ry] of [[3, 3], [20, 3], [3, 12], [20, 12]]) { r(x + rx, y + ry, 1, 1, C.steel); r(x + rx + 1, y + ry + 1, 1, 1, C.ink); }
+  }
+  for (const lane of [LANE_TOP, LANE_BOTTOM]) {
+    const y0 = (lane - 4) * f;
+    r(0, y0, W * f, 8 * f, C.slate);
+    for (let x = 0; x < W * f; x += 3) r(x, y0 + 1, 1, 8 * f - 2, C.night);
+    for (let x = 0; x < W * f; x += 8) { r(x, y0 - 2, 4, 2, C.amber); r(x + 4, y0 - 2, 4, 2, C.ink); r(x, y0 + 8 * f, 4, 2, C.amber); r(x + 4, y0 + 8 * f, 4, 2, C.ink); }
+  }
+  for (const y of [1, 197]) pipe(r, 0, y * f, W * f, 5 * f, true);
+  for (const c of CONDUITS) {
+    for (let i = 1; i < c.points.length; i++) {
+      const [ax, ay] = c.points[i - 1];
+      const [bx, by] = c.points[i];
+      const horizontal = ay === by;
+      const x = Math.min(ax, bx) * f - (horizontal ? 0 : 3);
+      const y = Math.min(ay, by) * f - (horizontal ? 3 : 0);
+      pipe(r, x, y, horizontal ? Math.abs(bx - ax) * f : 6, horizontal ? 6 : Math.abs(by - ay) * f, horizontal);
+    }
+    for (const [px, py] of c.points) { r(px * f - 4, py * f - 4, 8, 8, C.fog); r(px * f - 3, py * f - 3, 6, 6, C.steel); r(px * f - 1, py * f - 1, 2, 2, C.ink); }
+  }
+}
+
+export function buildScenery(cast: Spritesheet): Scenery {
   const background = new Container();
   const foreground = new Container();
-  const props: AnimatedProp[] = [];
-  const texture = (name: string) => {
-    const t = sheet.textures[name];
-    if (!t) throw new Error(`atlas has no frame ${name}`);
-    return t;
+  const coarse = (key: string, b: Box, fn: (r: R) => void) => {
+    const s = new Sprite(tex(`scene:${key}`, b.w, b.h, (r) => fn((x, y, w, h, c) => r(x - b.x, y - b.y, w, h, c))));
+    s.position.set(b.x, b.y);
+    background.addChild(s);
   };
-  const k: Kit = {
-    tile(name, x, y, parent = background) {
-      const s = new Sprite(texture(name));
-      s.position.set(x, y);
-      parent.addChild(s);
-      return s;
-    },
-    tiled(name, b, parent = background) {
-      const s = new TilingSprite({ texture: texture(name), width: b.w, height: b.h });
-      s.position.set(b.x, b.y);
-      parent.addChild(s);
-      return s;
-    },
-    anim(name, x, y, fps, parent = background) {
-      const frames = sheet.animations[name];
-      if (!frames) throw new Error(`atlas has no animation ${name}`);
-      const s = new Sprite(frames[0]);
-      s.position.set(x, y);
-      parent.addChild(s);
-      props.push({ sprite: s, frames, fps });
-      return s;
-    },
-    paint(key, b, fn) {
-      const s = new Sprite(tex(`scene:${key}`, b.w, b.h, (r) => fn((x, y, w, h, c) => r(x - b.x, y - b.y, w, h, c))));
-      s.position.set(b.x, b.y);
-      background.addChild(s);
-      return s;
-    },
-  };
-
-  /** A generated backdrop (PixelLab, at the characters' pixel density) filling a box, if one exists. */
   const backdrop = (name: string, b: Box) => {
     const t = cast.textures[`bg-${name}/0`];
-    if (!t) return false;
-    const sprite = new Sprite(t);
-    sprite.position.set(b.x, b.y);
-    sprite.width = b.w;
-    sprite.height = b.h;
-    background.addChild(sprite);
-    return true;
+    if (!t) throw new Error(`cast has no backdrop bg-${name}`);
+    const s = new Sprite(t);
+    s.position.set(b.x, b.y);
+    s.width = b.w;
+    s.height = b.h;
+    background.addChild(s);
   };
 
-  // ground and the two lanes
-  k.tiled("town/grass", { x: 0, y: HEAVEN.h, w: W, h: TICKER_Y - HEAVEN.h });
-  k.tiled("town/cobble", { x: 0, y: LANE_TOP - 3, w: W, h: 6 });
-  k.tiled("town/cobble", { x: 0, y: LANE_BOTTOM - 3, w: W, h: 6 });
+  const machine = new Sprite(tex("scene:machine", W * 2, TICKER_Y * 2, paintMachine));
+  machine.scale.set(0.5);
+  background.addChild(machine);
 
-  // heaven: sky, clouds, the Overlord's throne
-  k.paint("heaven", HEAVEN, (r) => {
-    r(0, 0, W, 26, C.sky); r(0, 18, W, 8, C.cloud);
-    for (let i = 0; i < 14; i++) { const cx = i * 29 + (i % 3) * 4; r(cx, 14 + (i % 2) * 2, 24, 7, C.white); r(cx + 5, 11 + (i % 2) * 2, 13, 5, C.white); }
-    r(176, 2, 32, 16, C.gold); r(180, 5, 24, 13, C.amber); r(186, 0, 12, 3, C.gold); r(183, 8, 18, 8, C.red);
-    const t = "THE OVERLORD";
-    r(192 - textWidth(t) / 2 - 2, 19, textWidth(t) + 4, 7, C.ink);
-    pixelText(r, t, 192 - textWidth(t) / 2, 20, C.gold, null);
-  });
+  backdrop("dispatch", ATC);
+  coarse("atc-frame", ATC, (r) => frame(r, ATC, "DISPATCH"));
 
-  // dispatch: a cramped office; the boss stands at the desk
-  if (backdrop("dispatch", ATC)) k.paint("atc-frame", ATC, (r) => frame(r, ATC, "DISPATCH"));
-  else {
-    k.tiled("town/house_wall_b", ATC);
-    k.paint("atc", ATC, (r) => {
-      const { x, y, w, h } = ATC;
-      r(x + 1, y + 10, w - 2, 20, C.night);
-      for (let i = 0; i < 4; i++) { r(x + 4 + i * 16, y + 12, 13, 9, C.deep); r(x + 5 + i * 16, y + 13, 11, 7, i % 2 ? C.green : C.blue); }
-      r(x + 1, y + h - 9, w - 2, 8, C.slate);
-      r(ATC_DESK.x - 14, ATC_DESK.y - 6, 40, 6, C.wood); r(ATC_DESK.x - 14, ATC_DESK.y, 40, 2, C.brown);
-      for (let i = 0; i < 3; i++) r(ATC_DESK.x - 10 + i * 6, ATC_DESK.y - 8, 4, 2, C.white); // paperwork
-      frame(r, ATC, "DISPATCH");
-    });
-    k.anim("lab/computer", ATC_DESK.x + 14, ATC_DESK.y - 20, 3);
-  }
-  k.anim("lab/drone", ATC.x + 52, ATC.y + 8, 8, foreground);
-
-  // prison block: stone walls, dark cells with a straw bed; thin bars go in the foreground
-  k.tiled("dungeon/wall_stone_a", PRISON);
-  if (cast.textures["bg-prison-cell/0"]) {
-    for (let row = 0; row < CELL_ROWS; row++) for (let col = 0; col < CELLS_PER_ROW; col++) {
-      backdrop("prison-cell", { x: PRISON.x + 2 + col * CELL_W, y: PRISON.y + row * CELL_H, w: CELL_W, h: CELL_H });
-    }
-  } else {
-    k.paint("cells", PRISON, (r) => {
-      for (let row = 0; row < CELL_ROWS; row++) for (let col = 0; col < CELLS_PER_ROW; col++) {
-        const cx = PRISON.x + 2 + col * CELL_W;
-        const cy = PRISON.y + row * CELL_H + 2;
-        r(cx + 1, cy, CELL_W - 2, CELL_H - 3, C.night);
-        r(cx + 1, cy + CELL_H - 9, CELL_W - 2, 6, C.slate);
-        for (let i = 0; i < 3; i++) r(cx + 3 + i * 5, cy + 6 + (i % 2) * 7, 2, 1, C.steel); // cracks
-        r(cx + 2, cy + CELL_H - 8, 7, 2, C.amber); r(cx + 3, cy + CELL_H - 9, 5, 1, C.sand); // straw
-      }
-    });
+  for (let row = 0; row < CELL_ROWS; row++) for (let col = 0; col < CELLS_PER_ROW; col++) {
+    backdrop("prison-cell", { x: PRISON.x + 2 + col * CELL_W, y: PRISON.y + row * CELL_H, w: CELL_W, h: CELL_H });
   }
   const bars = new Sprite(tex("scene:bars", PRISON.w, PRISON.h, (r) => {
     for (let row = 0; row < CELL_ROWS; row++) for (let col = 0; col < CELLS_PER_ROW; col++) {
@@ -189,97 +179,14 @@ export function buildScenery(sheet: Spritesheet, cast: Spritesheet): Scenery {
   bars.position.set(PRISON.x, PRISON.y);
   foreground.addChild(bars);
 
-  // the petition temple: dark flagstones, a red carpet up three steps to a lit altar between pillars
-  if (backdrop("petitions", ALTAR)) k.paint("altar-frame", ALTAR, (r) => frame(r, ALTAR, "PETITIONS"));
-  else {
-    k.paint("altar", ALTAR, (r) => {
-      const { x, y, w, h } = ALTAR;
-      r(x, y, w, h, C.slate);
-      for (let ty = y + 10; ty < y + h; ty += 8) for (let tx = x + ((ty / 8) % 2 ? 0 : 6); tx < x + w; tx += 12) r(tx, ty, 1, 8, C.night);
-      for (let ty = y + 10; ty < y + h; ty += 8) r(x, ty, w, 1, C.night);
-      for (let i = 0; i < 3; i++) { r(x + 16 + i * 6, y + 36 - i * 7, w - 32 - i * 12, 7, i % 2 ? C.fog : C.cloud); r(x + 16 + i * 6, y + 42 - i * 7, w - 32 - i * 12, 1, C.steel); }
-      r(x + w / 2 - 5, y + 22, 10, h - 23, C.red); r(x + w / 2 - 5, y + 22, 1, h - 23, C.blood); r(x + w / 2 + 4, y + 22, 1, h - 23, C.blood);
-      r(x + w / 2 - 11, y + 13, 22, 9, C.gold); r(x + w / 2 - 9, y + 15, 18, 5, C.amber);
-      r(x + w / 2 - 2, y + 8, 4, 5, C.orange); r(x + w / 2 - 1, y + 9, 2, 3, C.yellow);
-      for (const px of [x + 7, x + w - 11]) { r(px, y + 12, 4, 34, C.cloud); r(px + 3, y + 12, 1, 34, C.fog); r(px - 1, y + 10, 6, 3, C.white); r(px - 1, y + 45, 6, 3, C.fog); }
-      frame(r, ALTAR, "PETITIONS");
-    });
-  }
+  backdrop("petitions", ALTAR);
+  coarse("altar-frame", ALTAR, (r) => frame(r, ALTAR, "PETITIONS"));
 
   for (const s of SITES) {
     const b = SITE_BOXES[s.id];
-    if (backdrop(s.id, b)) k.paint(`site-frame-${s.id}`, b, (r) => frame(r, b, s.name.toUpperCase()));
-    else buildSite(s.id, b, k);
+    backdrop(s.id === "token-refinery" && cast.textures["bg-machine-god/0"] ? "machine-god" : s.id, b);
+    coarse(`site-frame-${s.id}`, b, (r) => frame(r, b, s.name.toUpperCase()));
   }
-  k.paint("ticker", { x: 0, y: TICKER_Y, w: W, h: H - TICKER_Y }, (r) => r(0, TICKER_Y, W, H - TICKER_Y, C.ink));
-  return { background, foreground, props };
-}
-
-function buildSite(id: SiteId, b: Box, k: Kit) {
-  const { x, y, w, h } = b;
-  const floor = y + h - 12;
-  switch (id) {
-    case "coal-mine":
-      k.tiled("dungeon/floor_dark_rocks", b);
-      for (const px of [x + 6, x + 42]) {
-        k.tile("mine/pit_tl", px, y + 10); k.tile("mine/pit_tr", px + 16, y + 10);
-        k.tile("mine/pit_bl", px, y + 26); k.tile("mine/pit_br", px + 16, y + 26);
-      }
-      k.tiled("mine/rail_h_a", { x: x + 76, y: floor, w: w - 77, h: 12 });
-      k.tile("town/cart", x + w - 20, floor - 6);
-      k.tile("town/pickaxe", x + 78, y + 12);
-      break;
-    case "sweatshop":
-      k.tiled("town/house_wall_a", { x, y, w, h: 20 });
-      k.tiled("dungeon/floor_slabs", { x, y: y + 20, w, h: h - 20 });
-      for (let i = 0; i < 5; i++) { k.tile("dungeon/table", x + 6 + i * 19, floor - 8); }
-      for (let i = 0; i < 4; i++) k.tile("dungeon/sack", x + 14 + i * 22, y + 4);
-      break;
-    case "quarry":
-      k.tiled("dungeon/floor_sand", b);
-      k.paint(`site-${id}`, b, (r) => {
-        for (const [bx, by, bw] of [[6, 10, 14], [24, 14, 16], [44, 8, 12], [36, 26, 9], [62, 12, 15], [80, 20, 12]]) {
-          r(x + bx, y + by, bw, bw - 3, C.fog); r(x + bx, y + by, bw, 2, C.cloud); r(x + bx, y + by + bw - 5, bw, 2, C.steel);
-        }
-      });
-      k.tile("dungeon/crate", x + w - 18, floor - 4);
-      k.tile("town/bucket", x + w - 34, floor);
-      break;
-    case "treadwheel":
-      k.paint(`site-${id}`, b, (r) => {
-        r(x, y, w, h, C.slate);
-        for (const cx of [x + 22, x + 56]) for (let a = 0; a < 360; a += 2) {
-          const rad = (a * Math.PI) / 180;
-          r(Math.round(cx + Math.cos(rad) * 15), Math.round(y + 24 + Math.sin(rad) * 15), 2, 2, C.wood);
-          if (a % 45 === 0) for (let d = 0; d < 15; d++) r(Math.round(cx + Math.cos(rad) * d), Math.round(y + 24 + Math.sin(rad) * d), 1, 1, C.brown);
-        }
-        r(x + w - 18, y + 6, 16, h - 10, C.ink);
-      });
-      for (let i = 0; i < 2; i++) k.anim("lab/computer", x + w - 18, y + 8 + i * 16, 3 + i);
-      break;
-    case "foundry":
-      k.tiled("dungeon/wall_brick", b);
-      k.paint(`site-${id}`, b, (r) => { r(x + 2, floor + 4, w - 4, 6, C.orange); r(x + 6, floor + 5, 16, 2, C.yellow); r(x + 50, floor + 5, 10, 2, C.yellow); });
-      k.tile("dungeon/anvil", x + w - 22, floor - 6);
-      k.tile("dungeon/anvil", x + w - 44, floor - 6);
-      k.anim("fx/fire_small", x + 6, floor - 10, 10);
-      k.anim("fx/fire_small", x + 24, floor - 10, 9);
-      break;
-    case "sewer":
-      k.tiled("dungeon/wall_stone_b", b);
-      k.paint(`site-${id}`, b, (r) => { r(x, floor + 2, w, 10, C.moss); r(x + 3, floor + 4, w - 6, 3, C.lime); });
-      k.tile("dungeon/skull_wall_acid", x + 6, y + 10);
-      k.tile("dungeon/skull_wall_acid", x + 40, y + 10);
-      k.tile("dungeon/cauldron_toxic", x + w - 22, floor - 10);
-      break;
-    case "token-refinery":
-      k.paint(`site-${id}`, b, (r) => {
-        r(x, y, w, h, C.purple); r(x + w - 26, y + 10, 24, h - 14, C.ink); r(x + w - 22, y + 18, 16, 10, C.orange); r(x + w - 20, y + 20, 12, 6, C.yellow);
-        for (let i = 0; i < 14; i++) r(x + 5 + ((i * 7) % 44), floor + 5 - (i % 3) * 2, 3, 2, C.gold);
-      });
-      k.anim("lab/barrel_radioactive", x + 4, y + 12, 8);
-      k.anim("lab/barrel_radioactive", x + 22, y + 12, 7);
-      break;
-  }
-  k.paint(`site-frame-${id}`, b, (r) => frame(r, b, SITES.find((s) => s.id === id)!.name.toUpperCase()));
+  coarse("ticker", { x: 0, y: TICKER_Y, w: W, h: H - TICKER_Y }, (r) => r(0, TICKER_Y, W, H - TICKER_Y, C.ink));
+  return { background, foreground, props: [] };
 }

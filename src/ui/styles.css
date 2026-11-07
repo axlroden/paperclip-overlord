@@ -12,11 +12,11 @@
 .ol-tag { background: rgba(24, 20, 37, 0.9); color: #fff; padding: 3px 6px; font-size: 12px; border: 1px solid var(--ol-gold); display: flex; flex-direction: column; max-width: 260px; }
 .ol-tag span { color: #c0cbdc; white-space: normal; }
 @keyframes ol-pop { from { transform-origin: bottom; scale: 0.6; } to { scale: 1; } }
-.ol-ticker { position: absolute; left: var(--ol-wx, 0); right: var(--ol-wx, 0); top: var(--ol-tk-top, 90%); height: var(--ol-tk-h, 10%); box-sizing: border-box; display: flex; align-items: center; gap: 18px; padding: 0 12px; color: #fee761; font-size: max(10px, calc(var(--ol-zoom, 2) * 5px)); overflow: hidden; pointer-events: none; }
+.ol-ticker { position: absolute; left: var(--ol-wx, 0); right: var(--ol-wx, 0); top: var(--ol-tk-top, 90%); height: var(--ol-tk-h, 10%); box-sizing: border-box; display: flex; align-items: center; gap: 18px; padding: 0 240px 0 12px; color: #fee761; font-size: max(10px, calc(var(--ol-zoom, 2) * 5px)); overflow: hidden; pointer-events: none; }
 .ol-ticker b { color: #e43b44; flex: none; }
 .ol-ticker span { white-space: nowrap; opacity: 0.85; }
 .ol-ticker span:first-of-type { opacity: 1; }
-.ol-hud { font-size: max(10px, calc(var(--ol-zoom, 2) * 4.5px)); white-space: nowrap; position: absolute; top: calc(var(--ol-wy, 0px) + 6px); left: calc(var(--ol-wx, 0px) + var(--ol-ww, 100%) - 6px); transform: translateX(-100%); display: flex; gap: 6px; }
+.ol-hud { font-size: max(10px, calc(var(--ol-zoom, 2) * 4.5px)); white-space: nowrap; position: absolute; top: calc(var(--ol-tk-top, 90%) + var(--ol-tk-h, 10%) / 2); left: calc(var(--ol-wx, 0px) + var(--ol-ww, 100%) - 6px); transform: translate(-100%, -50%); z-index: 1; display: flex; gap: 6px; }
 .ol-btn { font-family: var(--ol-font); font-size: 13px; padding: 4px 10px; background: var(--ol-paper); color: var(--ol-ink); border: 2px solid var(--ol-ink); box-shadow: 0 3px 0 var(--ol-ink); cursor: pointer; }
 .ol-btn:hover { background: #fee761; }
 .ol-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--ol-ink); }
