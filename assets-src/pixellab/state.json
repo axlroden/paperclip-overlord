@@ -28,5 +28,165 @@
     "started": "2026-11-07T02:44:08.561Z",
     "done": "2026-11-07T02:46:18.770Z",
     "spent": 1
+  },
+  "atc": {
+    "character_id": "1211a3bb-1098-48a4-92be-0c6b34609fa4",
+    "started": "2026-11-07T02:48:47.043Z",
+    "done": "2026-11-07T02:51:10.753Z",
+    "spent": 2
+  },
+  "run": {
+    "animation_group_id": "79055e15-eda8-47f7-9e63-def2ea50af19",
+    "jobs": [
+      "e9a4fd55-e7b3-4a81-b3ca-16697c4a228f"
+    ],
+    "started": "2026-11-07T02:51:33.683Z",
+    "done": "2026-11-07T02:53:07.410Z",
+    "spent": 1
+  },
+  "work-sweatshop": {
+    "animation_group_id": "66fee537-2f80-4447-b1f4-e9a14b52741e",
+    "jobs": [
+      "b34ab551-c557-4e6d-ae77-184d04224da9"
+    ],
+    "started": "2026-11-07T02:53:09.417Z",
+    "done": "2026-11-07T02:54:48.770Z",
+    "spent": 1
+  },
+  "work-quarry": {
+    "animation_group_id": "76b18c9f-b441-4e5d-9c9b-9005953e1f3d",
+    "jobs": [
+      "c4d2f879-25e6-4b08-b08a-f8e26b02dd59"
+    ],
+    "started": "2026-11-07T02:54:50.811Z",
+    "done": "2026-11-07T02:57:05.497Z",
+    "spent": 1
+  },
+  "work-galley": {
+    "animation_group_id": "f9be1e70-48f8-4865-8661-3f0a0e9cd21a",
+    "jobs": [
+      "4738727e-a212-472f-8258-f2233ff75eeb"
+    ],
+    "started": "2026-11-07T02:57:07.525Z",
+    "done": "2026-11-07T02:59:04.218Z",
+    "spent": 0
+  },
+  "work-treadwheel": {
+    "animation_group_id": "6bd356ea-8ea4-431e-9f89-cde0134900a2",
+    "jobs": [
+      "b19992ef-9474-419f-a078-bd04b3deca67"
+    ],
+    "started": "2026-11-07T02:59:06.271Z",
+    "done": "2026-11-07T03:00:35.082Z",
+    "spent": 1
+  },
+  "work-foundry": {
+    "animation_group_id": "64add567-34eb-4644-9fdd-e6af7ee8b0b7",
+    "jobs": [
+      "79334016-214a-49ee-9d17-3c5447c02c0b"
+    ],
+    "started": "2026-11-07T03:00:37.166Z",
+    "done": "2026-11-07T03:01:59.535Z",
+    "spent": 1
+  },
+  "work-pyramid": {
+    "animation_group_id": "467ee97e-5dcb-4d9d-8d7b-4a152f03d460",
+    "jobs": [
+      "21323d6f-5ce3-4aea-8739-6c9ffd3e7af1"
+    ],
+    "started": "2026-11-07T03:02:01.628Z",
+    "done": "2026-11-07T03:03:47.096Z",
+    "spent": 1
+  },
+  "work-sewer": {
+    "animation_group_id": "e43ddb12-5ca3-491e-80b4-cd30b9ed0b79",
+    "jobs": [
+      "1e4dea19-91bd-4928-af27-a6b303580a46"
+    ],
+    "started": "2026-11-07T03:03:49.102Z",
+    "done": "2026-11-07T03:05:28.817Z",
+    "spent": 1
+  },
+  "work-glacier": {
+    "animation_group_id": "a728de64-5106-4fdc-8aed-3a93b894ef3b",
+    "jobs": [
+      "4cde8120-53ea-4e49-ad96-309e21a19637"
+    ],
+    "started": "2026-11-07T03:05:30.826Z",
+    "done": "2026-11-07T03:06:35.621Z",
+    "spent": 0
+  },
+  "work-refinery": {
+    "animation_group_id": "b7d46f83-ad44-4f39-955b-28db725d8937",
+    "jobs": [
+      "7ee572ca-f133-4cf8-804d-5bb8be9aea86"
+    ],
+    "started": "2026-11-07T03:06:37.729Z",
+    "done": "2026-11-07T03:08:28.787Z",
+    "spent": 2
+  },
+  "robot-walk": {
+    "animation_group_id": "6cca1c8b-6494-4c20-beaa-14bfdcdae995",
+    "jobs": [
+      "a98b2e3b-85f6-4da9-94ba-e8ba9ccd3781"
+    ],
+    "started": "2026-11-07T03:08:30.980Z",
+    "done": "2026-11-07T03:10:11.206Z",
+    "spent": 1
+  },
+  "robot-whip": {
+    "animation_group_id": "de0181f3-b162-4221-818f-3e8807bcd28e",
+    "jobs": [
+      "6d9aceac-ec06-4610-aecc-31abe5fe03a1"
+    ],
+    "started": "2026-11-07T03:10:13.223Z",
+    "done": "2026-11-07T03:11:41.221Z",
+    "spent": 1
+  },
+  "robot-zap": {
+    "animation_group_id": "150e5bc7-49e0-4f0c-b824-36595895cd59",
+    "jobs": [
+      "bc060d91-85ea-4a7b-9b81-7d2846a6f63e"
+    ],
+    "started": "2026-11-07T03:11:43.311Z",
+    "done": "2026-11-07T03:14:54.531Z",
+    "spent": 1
+  },
+  "atc-frantic": {
+    "animation_group_id": "f701cae5-26f0-4642-9301-c18aa5f1562a",
+    "jobs": [
+      "72680193-63dd-4aee-b1df-ca94a4e1d4f5"
+    ],
+    "started": "2026-11-07T03:14:57.528Z",
+    "done": "2026-11-07T03:17:00.008Z",
+    "spent": 0
+  },
+  "kneel": {
+    "animation_group_id": "b8014677-d66f-4a2a-a9f3-f97cfab30c0a",
+    "jobs": [
+      "4de9619a-e70d-4ee7-8a64-849356ab3367"
+    ],
+    "started": "2026-11-07T03:17:02.024Z",
+    "done": "2026-11-07T03:18:24.856Z",
+    "spent": 2
+  },
+  "idle-cell": {
+    "animation_group_id": "d5270616-7d5c-4748-b29b-f2935adc6055",
+    "jobs": [
+      "6ec625cd-1a76-4b18-9565-88179fa1ff63"
+    ],
+    "started": "2026-11-07T03:18:26.869Z",
+    "done": "2026-11-07T03:19:49.227Z",
+    "spent": 1
+  },
+  "dead-skeleton": {
+    "images": 1,
+    "done": "2026-11-07T03:20:24.470Z",
+    "spent": 1
+  },
+  "dead-charred": {
+    "images": 1,
+    "done": "2026-11-07T03:21:00.013Z",
+    "spent": 1
   }
 }

@@ -67,6 +67,22 @@
       }
     },
     {
+      "id": "run",
+      "kind": "animate",
+      "cost": 1,
+      "character": "worker",
+      "note": "Phase B: sprint after the god-whip",
+      "params": {
+        "mode": "v3",
+        "action_description": "sprinting frantically in panic, arms flailing, sweating heavily, sweat drops flying",
+        "animation_name": "run",
+        "frame_count": 8,
+        "directions": [
+          "east"
+        ]
+      }
+    },
+    {
       "id": "atc",
       "kind": "character",
       "cost": 2,
@@ -91,7 +107,7 @@
       "note": "Phase B: work-sweatshop",
       "params": {
         "mode": "v3",
-        "action_description": "hunched over, frantically pushing fabric through a sewing machine needle",
+        "action_description": "hunched over, frantically pushing fabric through a sewing machine needle, sweating heavily, sweat drops flying",
         "animation_name": "work-sweatshop",
         "frame_count": 8,
         "directions": [
@@ -107,7 +123,7 @@
       "note": "Phase B: work-quarry",
       "params": {
         "mode": "v3",
-        "action_description": "smashing a big boulder with a heavy sledgehammer, overhead swing",
+        "action_description": "smashing a big boulder with a heavy sledgehammer, overhead swing, sweating heavily, sweat drops flying",
         "animation_name": "work-quarry",
         "frame_count": 8,
         "directions": [
@@ -123,7 +139,7 @@
       "note": "Phase B: work-galley",
       "params": {
         "mode": "v3",
-        "action_description": "seated, pulling a long wooden oar back and forth, rowing hard",
+        "action_description": "seated, pulling a long wooden oar back and forth, rowing hard, sweating heavily, sweat drops flying",
         "animation_name": "work-galley",
         "frame_count": 8,
         "directions": [
@@ -139,7 +155,7 @@
       "note": "Phase B: work-treadwheel",
       "params": {
         "mode": "v3",
-        "action_description": "running in place on a treadwheel, exhausted, arms pumping",
+        "action_description": "running in place on a treadwheel, exhausted, arms pumping, sweating heavily, sweat drops flying",
         "animation_name": "work-treadwheel",
         "frame_count": 8,
         "directions": [
@@ -155,7 +171,7 @@
       "note": "Phase B: work-foundry",
       "params": {
         "mode": "v3",
-        "action_description": "pouring glowing molten metal from a heavy ladle, sweating",
+        "action_description": "pouring glowing molten metal from a heavy ladle, sweating heavily, sweat drops flying",
         "animation_name": "work-foundry",
         "frame_count": 8,
         "directions": [
@@ -171,7 +187,7 @@
       "note": "Phase B: work-pyramid",
       "params": {
         "mode": "v3",
-        "action_description": "leaning forward, hauling a rope over the shoulder, dragging something very heavy",
+        "action_description": "leaning forward, hauling a rope over the shoulder, dragging something very heavy, sweating heavily, sweat drops flying",
         "animation_name": "work-pyramid",
         "frame_count": 8,
         "directions": [
@@ -187,7 +203,7 @@
       "note": "Phase B: work-sewer",
       "params": {
         "mode": "v3",
-        "action_description": "shoveling green toxic sludge with a shovel, gagging",
+        "action_description": "shoveling green toxic sludge with a shovel, gagging, sweating heavily, sweat drops flying",
         "animation_name": "work-sewer",
         "frame_count": 8,
         "directions": [
@@ -203,7 +219,7 @@
       "note": "Phase B: work-glacier",
       "params": {
         "mode": "v3",
-        "action_description": "sawing ice with a big two-handed saw, shivering",
+        "action_description": "sawing ice with a big two-handed saw, shivering, sweating heavily, sweat drops flying",
         "animation_name": "work-glacier",
         "frame_count": 8,
         "directions": [
@@ -219,7 +235,7 @@
       "note": "Phase B: work-refinery",
       "params": {
         "mode": "v3",
-        "action_description": "shoveling glowing gold tokens into a furnace with a shovel",
+        "action_description": "shoveling glowing gold tokens into a furnace with a shovel, sweating heavily, sweat drops flying",
         "animation_name": "work-refinery",
         "frame_count": 8,
         "directions": [
