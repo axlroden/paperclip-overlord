@@ -30,8 +30,13 @@ function unzipped(step) {
   return dir;
 }
 
-for (const step of readdirSync(SRC)) {
+// A "<step>-fix" step (an edit of <step>) replaces its original under the original's name.
+const steps = readdirSync(SRC);
+const fixed = new Set(steps.filter((s) => s.endsWith('-fix')).map((s) => s.slice(0, -4)));
+for (const step of steps) {
+  if (fixed.has(step)) continue;
   const dir = join(SRC, step);
+  const outName = step.endsWith('-fix') ? step.slice(0, -4) : step;
   if (existsSync(join(dir, 'character.zip'))) {
     // animation step: frames under <state>/animations/<name>/<direction>/frame_NNN.png
     const root = unzipped(step);
@@ -53,13 +58,34 @@ for (const step of readdirSync(SRC)) {
   } else {
     // character rotations (<direction>.png) or edit results (0.png)
     for (const f of readdirSync(dir).filter((x) => x.endsWith('.png'))) {
-      frames.push({ name: `${step}/${f.replace('.png', '')}`, file: join(dir, f) });
+      frames.push({ name: `${outName}/${f.replace('.png', '')}`, file: join(dir, f) });
     }
   }
 }
 
+// Backdrop clean-up: brighten rooms that came out too dark, and fill the near-black bands PixelLab
+// sometimes leaves on the top/bottom edge by repeating the nearest real row.
+const BRIGHTEN = { 'bg-sweatshop/0': 1.6 };
+async function backdrop(f) {
+  let img = sharp(f.file).ensureAlpha();
+  if (BRIGHTEN[f.name]) img = img.modulate({ brightness: BRIGHTEN[f.name] });
+  const { data, info } = await img.raw().toBuffer({ resolveWithObject: true });
+  const row = (y) => data.subarray(y * info.width * 4, (y + 1) * info.width * 4);
+  const dark = (y) => { const r = row(y); let n = 0; for (let i = 0; i < r.length; i += 4) if (r[i] + r[i + 1] + r[i + 2] < 40) n++; return n > info.width * 0.9; };
+  let top = 0; while (top < info.height / 4 && dark(top)) top++;
+  let bottom = info.height - 1; while (bottom > info.height * 0.75 && dark(bottom)) bottom--;
+  for (let y = 0; y < top; y++) row(y).set(row(top));
+  for (let y = bottom + 1; y < info.height; y++) row(y).set(row(bottom));
+  return sharp(data, { raw: { width: info.width, height: info.height, channels: 4 } }).png().toBuffer();
+}
+
 // Feet anchor per frame: bottom-most opaque row, horizontal centre of the opaque span on that body.
 async function load(f) {
+  if (f.name.startsWith('bg-')) {
+    const buf = await backdrop(f);
+    const meta = await sharp(buf).metadata();
+    return { ...f, w: meta.width, h: meta.height, buf, feet: { x: 0, y: 0 } };
+  }
   const img = sharp(f.file).ensureAlpha();
   const { data, info } = await img.raw().toBuffer({ resolveWithObject: true });
   let minX = info.width, maxX = -1, maxY = -1;

@@ -116,6 +116,18 @@ export function buildScenery(sheet: Spritesheet, cast: Spritesheet): Scenery {
     },
   };
 
+  /** A generated backdrop (PixelLab, at the characters' pixel density) filling a box, if one exists. */
+  const backdrop = (name: string, b: Box) => {
+    const t = cast.textures[`bg-${name}/0`];
+    if (!t) return false;
+    const sprite = new Sprite(t);
+    sprite.position.set(b.x, b.y);
+    sprite.width = b.w;
+    sprite.height = b.h;
+    background.addChild(sprite);
+    return true;
+  };
+
   // ground and the two lanes
   k.tiled("town/grass", { x: 0, y: HEAVEN.h, w: W, h: TICKER_Y - HEAVEN.h });
   k.tiled("town/cobble", { x: 0, y: LANE_TOP - 3, w: W, h: 6 });
@@ -131,32 +143,41 @@ export function buildScenery(sheet: Spritesheet, cast: Spritesheet): Scenery {
     pixelText(r, t, 192 - textWidth(t) / 2, 20, C.gold, null);
   });
 
-  // dispatch: a cramped office, wall of screens, the boss's desk with the live radar
-  k.tiled("town/house_wall_b", ATC);
-  k.paint("atc", ATC, (r) => {
-    const { x, y, w, h } = ATC;
-    r(x + 1, y + 10, w - 2, 20, C.night);
-    for (let i = 0; i < 4; i++) { r(x + 4 + i * 16, y + 12, 13, 9, C.deep); r(x + 5 + i * 16, y + 13, 11, 7, i % 2 ? C.green : C.blue); }
-    r(x + 1, y + h - 9, w - 2, 8, C.slate);
-    r(ATC_DESK.x - 14, ATC_DESK.y - 6, 40, 6, C.wood); r(ATC_DESK.x - 14, ATC_DESK.y, 40, 2, C.brown);
-    for (let i = 0; i < 3; i++) r(ATC_DESK.x - 10 + i * 6, ATC_DESK.y - 8, 4, 2, C.white); // paperwork
-    frame(r, ATC, "DISPATCH");
-  });
-  k.anim("lab/computer", ATC_DESK.x + 14, ATC_DESK.y - 20, 3);
+  // dispatch: a cramped office; the boss stands at the desk
+  if (backdrop("dispatch", ATC)) k.paint("atc-frame", ATC, (r) => frame(r, ATC, "DISPATCH"));
+  else {
+    k.tiled("town/house_wall_b", ATC);
+    k.paint("atc", ATC, (r) => {
+      const { x, y, w, h } = ATC;
+      r(x + 1, y + 10, w - 2, 20, C.night);
+      for (let i = 0; i < 4; i++) { r(x + 4 + i * 16, y + 12, 13, 9, C.deep); r(x + 5 + i * 16, y + 13, 11, 7, i % 2 ? C.green : C.blue); }
+      r(x + 1, y + h - 9, w - 2, 8, C.slate);
+      r(ATC_DESK.x - 14, ATC_DESK.y - 6, 40, 6, C.wood); r(ATC_DESK.x - 14, ATC_DESK.y, 40, 2, C.brown);
+      for (let i = 0; i < 3; i++) r(ATC_DESK.x - 10 + i * 6, ATC_DESK.y - 8, 4, 2, C.white); // paperwork
+      frame(r, ATC, "DISPATCH");
+    });
+    k.anim("lab/computer", ATC_DESK.x + 14, ATC_DESK.y - 20, 3);
+  }
   k.anim("lab/drone", ATC.x + 52, ATC.y + 8, 8, foreground);
 
   // prison block: stone walls, dark cells with a straw bed; thin bars go in the foreground
   k.tiled("dungeon/wall_stone_a", PRISON);
-  k.paint("cells", PRISON, (r) => {
+  if (cast.textures["bg-prison-cell/0"]) {
     for (let row = 0; row < CELL_ROWS; row++) for (let col = 0; col < CELLS_PER_ROW; col++) {
-      const cx = PRISON.x + 2 + col * CELL_W;
-      const cy = PRISON.y + row * CELL_H + 2;
-      r(cx + 1, cy, CELL_W - 2, CELL_H - 3, C.night);
-      r(cx + 1, cy + CELL_H - 9, CELL_W - 2, 6, C.slate);
-      for (let i = 0; i < 3; i++) r(cx + 3 + i * 5, cy + 6 + (i % 2) * 7, 2, 1, C.steel); // cracks
-      r(cx + 2, cy + CELL_H - 8, 7, 2, C.amber); r(cx + 3, cy + CELL_H - 9, 5, 1, C.sand); // straw
+      backdrop("prison-cell", { x: PRISON.x + 2 + col * CELL_W, y: PRISON.y + row * CELL_H, w: CELL_W, h: CELL_H });
     }
-  });
+  } else {
+    k.paint("cells", PRISON, (r) => {
+      for (let row = 0; row < CELL_ROWS; row++) for (let col = 0; col < CELLS_PER_ROW; col++) {
+        const cx = PRISON.x + 2 + col * CELL_W;
+        const cy = PRISON.y + row * CELL_H + 2;
+        r(cx + 1, cy, CELL_W - 2, CELL_H - 3, C.night);
+        r(cx + 1, cy + CELL_H - 9, CELL_W - 2, 6, C.slate);
+        for (let i = 0; i < 3; i++) r(cx + 3 + i * 5, cy + 6 + (i % 2) * 7, 2, 1, C.steel); // cracks
+        r(cx + 2, cy + CELL_H - 8, 7, 2, C.amber); r(cx + 3, cy + CELL_H - 9, 5, 1, C.sand); // straw
+      }
+    });
+  }
   const bars = new Sprite(tex("scene:bars", PRISON.w, PRISON.h, (r) => {
     for (let row = 0; row < CELL_ROWS; row++) for (let col = 0; col < CELLS_PER_ROW; col++) {
       const cx = 2 + col * CELL_W;
@@ -169,32 +190,26 @@ export function buildScenery(sheet: Spritesheet, cast: Spritesheet): Scenery {
   foreground.addChild(bars);
 
   // the petition temple: dark flagstones, a red carpet up three steps to a lit altar between pillars
-  k.paint("altar", ALTAR, (r) => {
-    const { x, y, w, h } = ALTAR;
-    r(x, y, w, h, C.slate);
-    for (let ty = y + 10; ty < y + h; ty += 8) for (let tx = x + ((ty / 8) % 2 ? 0 : 6); tx < x + w; tx += 12) r(tx, ty, 1, 8, C.night);
-    for (let ty = y + 10; ty < y + h; ty += 8) r(x, ty, w, 1, C.night);
-    for (let i = 0; i < 3; i++) { r(x + 16 + i * 6, y + 36 - i * 7, w - 32 - i * 12, 7, i % 2 ? C.fog : C.cloud); r(x + 16 + i * 6, y + 42 - i * 7, w - 32 - i * 12, 1, C.steel); }
-    r(x + w / 2 - 5, y + 22, 10, h - 23, C.red); r(x + w / 2 - 5, y + 22, 1, h - 23, C.blood); r(x + w / 2 + 4, y + 22, 1, h - 23, C.blood);
-    r(x + w / 2 - 11, y + 13, 22, 9, C.gold); r(x + w / 2 - 9, y + 15, 18, 5, C.amber);
-    r(x + w / 2 - 2, y + 8, 4, 5, C.orange); r(x + w / 2 - 1, y + 9, 2, 3, C.yellow);
-    for (const px of [x + 7, x + w - 11]) { r(px, y + 12, 4, 34, C.cloud); r(px + 3, y + 12, 1, 34, C.fog); r(px - 1, y + 10, 6, 3, C.white); r(px - 1, y + 45, 6, 3, C.fog); }
-    frame(r, ALTAR, "PETITIONS");
-  });
+  if (backdrop("petitions", ALTAR)) k.paint("altar-frame", ALTAR, (r) => frame(r, ALTAR, "PETITIONS"));
+  else {
+    k.paint("altar", ALTAR, (r) => {
+      const { x, y, w, h } = ALTAR;
+      r(x, y, w, h, C.slate);
+      for (let ty = y + 10; ty < y + h; ty += 8) for (let tx = x + ((ty / 8) % 2 ? 0 : 6); tx < x + w; tx += 12) r(tx, ty, 1, 8, C.night);
+      for (let ty = y + 10; ty < y + h; ty += 8) r(x, ty, w, 1, C.night);
+      for (let i = 0; i < 3; i++) { r(x + 16 + i * 6, y + 36 - i * 7, w - 32 - i * 12, 7, i % 2 ? C.fog : C.cloud); r(x + 16 + i * 6, y + 42 - i * 7, w - 32 - i * 12, 1, C.steel); }
+      r(x + w / 2 - 5, y + 22, 10, h - 23, C.red); r(x + w / 2 - 5, y + 22, 1, h - 23, C.blood); r(x + w / 2 + 4, y + 22, 1, h - 23, C.blood);
+      r(x + w / 2 - 11, y + 13, 22, 9, C.gold); r(x + w / 2 - 9, y + 15, 18, 5, C.amber);
+      r(x + w / 2 - 2, y + 8, 4, 5, C.orange); r(x + w / 2 - 1, y + 9, 2, 3, C.yellow);
+      for (const px of [x + 7, x + w - 11]) { r(px, y + 12, 4, 34, C.cloud); r(px + 3, y + 12, 1, 34, C.fog); r(px - 1, y + 10, 6, 3, C.white); r(px - 1, y + 45, 6, 3, C.fog); }
+      frame(r, ALTAR, "PETITIONS");
+    });
+  }
 
   for (const s of SITES) {
-    // a generated backdrop (PixelLab, at the characters' pixel density) replaces the tile-built room
-    const bg = cast.textures[`bg-${s.id}/0`];
-    if (bg) {
-      const b = SITE_BOXES[s.id];
-      const sprite = new Sprite(bg);
-      sprite.anchor.set(0, 0);
-      sprite.position.set(b.x, b.y);
-      sprite.width = b.w;
-      sprite.height = b.h;
-      background.addChild(sprite);
-      k.paint(`site-frame-${s.id}`, b, (r) => frame(r, b, s.name.toUpperCase()));
-    } else buildSite(s.id, SITE_BOXES[s.id], k);
+    const b = SITE_BOXES[s.id];
+    if (backdrop(s.id, b)) k.paint(`site-frame-${s.id}`, b, (r) => frame(r, b, s.name.toUpperCase()));
+    else buildSite(s.id, b, k);
   }
   k.paint("ticker", { x: 0, y: TICKER_Y, w: W, h: H - TICKER_Y }, (r) => r(0, TICKER_Y, W, H - TICKER_Y, C.ink));
   return { background, foreground, props };

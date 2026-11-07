@@ -550,6 +550,19 @@
         "no_background": false,
         "color_image": "palette.png"
       }
+    },
+    {
+      "id": "bg-dispatch-fix",
+      "kind": "edit",
+      "cost": 1,
+      "note": "remove the two painted operators from the dispatch backdrop",
+      "params": {
+        "image": "out/bg-dispatch/0.png",
+        "description": "remove the two people sitting at the desks, leave the desks and empty office chairs, keep everything else exactly the same",
+        "no_background": false,
+        "width": 140,
+        "height": 92
+      }
     }
   ]
 }
