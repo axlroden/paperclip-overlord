@@ -9,8 +9,8 @@ import {
 } from "../../shared/world.js";
 import { C, godHand, plane } from "./pixels.js";
 import {
-  ALTAR, ATC, ATC_DESK, buildScenery, cellFeet, GRAVE, H, LANE_BOTTOM, LANE_TOP, SITE_BOXES, slotIn,
-  STOCKS, TICKER_Y, W, WAGON, type AnimatedProp,
+  ALTAR, ATC, ATC_DESK, buildScenery, cellFeet, H, LANE_BOTTOM, LANE_TOP, SITE_BOXES, slotIn,
+  TICKER_Y, W, type AnimatedProp,
 } from "./scene.js";
 
 export type QuipFn = (tag: string, agent: WorldAgent | null) => string | null;
@@ -61,8 +61,7 @@ const RAGS = [null, 210, 120, 0, 280, 190, 330, 55] as const;
 
 const WORK_ANIM: Record<SiteId, string> = {
   "coal-mine": "work-coal-mine/east", sweatshop: "work-sweatshop/east", quarry: "work-quarry/east",
-  galley: "work-galley/east", treadwheel: "work-treadwheel/east", foundry: "work-foundry/east",
-  pyramid: "work-pyramid/east", sewer: "work-sewer/east", glacier: "work-glacier/east",
+  treadwheel: "work-treadwheel/east", foundry: "work-foundry/east", sewer: "work-sewer/east",
   "token-refinery": "work-refinery/east",
 };
 
@@ -80,7 +79,7 @@ const easeOut = (p: number) => 1 - (1 - p) ** 3;
 const rand = (a: number, b: number) => a + Math.random() * (b - a);
 const pick = <T>(xs: readonly T[]): T => xs[Math.floor(Math.random() * xs.length)];
 
-type Mode = "walk" | "work" | "idle" | "kneel" | "stocks" | "atc" | "tomb" | "wagon";
+type Mode = "walk" | "work" | "idle" | "kneel" | "atc" | "gone";
 
 interface Death { kind: DeathId; t: number; impacted: boolean }
 
@@ -342,8 +341,8 @@ export class OverlordEngine {
     this.actorsLayer.addChild(sprite);
     const h = hash(a.id);
     const actor: Actor = {
-      a, rags: RAGS[h % RAGS.length], phase: h % 1000, sprite, x: WAGON.x + 24, y: WAGON.y + 32,
-      path: [], place: { zone: "wagon" }, mode: "idle", facing: 1,
+      a, rags: RAGS[h % RAGS.length], phase: h % 1000, sprite, x: ALTAR.x + 20, y: ALTAR.y + ALTAR.h - 4,
+      path: [], place: { zone: "altar" }, mode: "idle", facing: 1,
       sprintUntil: 0, hurtUntil: 0, nextDeath: this.now + this.deathDelay(), death: null,
     };
     this.actors.set(a.id, actor);
@@ -356,21 +355,20 @@ export class OverlordEngine {
       case "cell": return cellFeet(Math.max(0, cellIndex));
       case "site": return slotIn(SITE_BOXES[place.site], slot(`site:${place.site}`), 15, 3);
       case "altar": return slotIn(ALTAR, slot("altar"), 12, 4);
-      case "stocks": { const i = slot("stocks"); return { x: STOCKS.x + 8 + (i % 3) * 15, y: STOCKS.y + 30 }; }
-      case "wagon": return slotIn({ ...WAGON, y: WAGON.y - 6 }, slot("wagon"), 10, 4);
-      case "graveyard": return slotIn(GRAVE, slot("grave"), 12, 4);
+      case "gone": return { x: -50, y: -50 };
     }
   }
 
   /** Walk via the nearest lane: up/down to the lane, along it, then to the target. */
   private route(actor: Actor, to: { x: number; y: number }) {
-    if (actor.place.zone === "graveyard") { actor.x = to.x; actor.y = to.y; actor.path = []; return; }
+    if (actor.place.zone === "gone") { actor.x = to.x; actor.y = to.y; actor.path = []; return; }
     if (actor.death) { actor.path = []; return; } // finishes dying in place; setWorld routes it after
-    const lane = (actor.y > 118 || to.y > 118) && !(actor.y < 82 && to.y < 82) ? LANE_BOTTOM : LANE_TOP;
-    const laneX = (x: number) => (x < 78 ? 78 : x);
+    // the lane beside the destination row; for the middle row, the lane nearest the walker
+    const near = (y: number) => (y > (LANE_TOP + LANE_BOTTOM) / 2 ? LANE_BOTTOM : LANE_TOP);
+    const lane = to.y < LANE_TOP ? LANE_TOP : to.y > LANE_BOTTOM ? LANE_BOTTOM : near(actor.y);
     actor.path = Math.abs(actor.x - to.x) < 2 && Math.abs(actor.y - to.y) < 20
       ? [to]
-      : [{ x: actor.x, y: lane }, { x: laneX(to.x), y: lane }, { x: to.x, y: lane }, to];
+      : [{ x: actor.x, y: lane }, { x: to.x, y: lane }, to];
   }
 
   private deathDelay() {
@@ -444,26 +442,27 @@ export class OverlordEngine {
 
     const s = actor.sprite;
     let t: Texture;
-    let scale = SPRITE_SCALE;
+    const scale = SPRITE_SCALE;
     switch (actor.mode) {
       case "walk": t = this.loopFrame(this.castFrames(sprint ? "run/east" : "walk/east"), sprint ? 14 : 10, actor.phase); break;
       case "work": t = this.loopFrame(this.castFrames(WORK_ANIM[(actor.place as { site: SiteId }).site]), sprint ? 16 : 10, actor.phase); break;
       case "kneel": t = this.loopFrame(this.castFrames("kneel/east").slice(-4), 5, actor.phase); break;
       case "atc": t = actor.a.status === "running" ? this.loopFrame(this.castFrames("atc-frantic/east"), 12, actor.phase) : this.castTex("atc/south"); break;
-      case "tomb": t = this.art.atlas.textures["dungeon/tomb_round"]; scale = 1; break;
       case "idle": t = this.loopFrame(this.castFrames("idle-cell/east"), 4, actor.phase); break;
       default: t = this.castTex("worker/south");
     }
-    if (actor.a.id !== this.bossId && actor.mode !== "tomb") t = this.dyed(t, actor.rags);
-    this.show(s, t, actor.mode === "tomb" ? 1 : actor.facing, scale);
-    if (actor.mode === "tomb") s.anchor.set(0.5, 1);
+    if (actor.a.id !== this.bossId) t = this.dyed(t, actor.rags);
+    this.show(s, t, actor.facing, scale);
+    s.visible = actor.mode !== "gone";
     const hurt = this.now < actor.hurtUntil;
-    s.tint = hurt ? 0xff8a8a : 0xffffff;
+    // an agent in error sits in its cell glowing an angry red until God pardons it
+    const broken = actor.a.status === "error" && Math.floor((this.now + actor.phase) / 500) % 2 === 0;
+    s.tint = hurt ? 0xff8a8a : broken ? 0xff6060 : 0xffffff;
     const jitter = hurt || (actor.mode === "atc" && actor.a.status === "running") ? (Math.floor(this.now / 60) % 2) - 0.5 : 0;
     s.position.set(Math.round((actor.x + jitter) * 2) / 2, Math.round(actor.y * 2) / 2);
     s.zIndex = actor.y;
 
-    if (actor.mode === "idle" && actor.place.zone === "cell" && this.now > actor.nextDeath && !this.opts.mini) this.startDeath(actor);
+    if (actor.mode === "idle" && actor.place.zone === "cell" && actor.a.status !== "error" && this.now > actor.nextDeath && !this.opts.mini) this.startDeath(actor);
   }
 
   private startDeath(actor: Actor) {
@@ -656,12 +655,12 @@ export class OverlordEngine {
   private chatter() {
     if (this.now < this.nextChatter) return;
     this.nextChatter = this.now + (this.opts.mini ? rand(8000, 14000) : rand(2500, 6000));
-    const pool = [...this.actors.values()].filter((a) => !a.death && a.mode !== "tomb" && a.mode !== "walk");
+    const pool = [...this.actors.values()].filter((a) => !a.death && a.mode !== "gone" && a.mode !== "walk");
     if (!pool.length) return;
     const actor = pick(pool);
     const tag = actor.mode === "atc" ? "atc"
       : actor.place.zone === "site" ? `site:${actor.place.site}`
-        : actor.place.zone === "stocks" ? "stocks"
+        : actor.a.status === "error" ? "stocks"
           : actor.place.zone === "altar" ? "petition"
             : actor.a.status === "paused" ? "paused" : "idle";
     this.say(actor.a.id, this.opts.quip(tag, actor.a));
@@ -729,9 +728,7 @@ function modeFor(actor: Actor): Mode {
     case "site": return "work";
     case "atc": return "atc";
     case "altar": return "kneel";
-    case "stocks": return "stocks";
-    case "graveyard": return "tomb";
-    case "wagon": return "wagon";
+    case "gone": return "gone";
     default: return "idle";
   }
 }

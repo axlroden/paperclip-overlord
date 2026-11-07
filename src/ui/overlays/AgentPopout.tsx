@@ -10,8 +10,8 @@ interface Detail {
 }
 
 const STATUS_LABEL: Record<string, string> = {
-  running: "toiling", idle: "caged", active: "caged", paused: "chained", error: "in the stocks",
-  pending_approval: "in the wagon", terminated: "deceased",
+  running: "toiling", idle: "caged", active: "caged", paused: "chained", error: "broken in its cell",
+  pending_approval: "begging to be hired", terminated: "deceased",
 };
 
 export function AgentPopout({ agent, isBoss, companyId, userId, events, onClose, onWhip }: {

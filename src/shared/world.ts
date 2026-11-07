@@ -5,12 +5,9 @@ export const SITES = [
   { id: "coal-mine", name: "Coal Mine", verb: "hacking coal" },
   { id: "sweatshop", name: "Sweatshop", verb: "sewing like mad" },
   { id: "quarry", name: "Quarry", verb: "smashing boulders" },
-  { id: "galley", name: "Galley", verb: "rowing to the beat" },
   { id: "treadwheel", name: "GPU Treadwheel", verb: "powering the racks" },
   { id: "foundry", name: "Lava Foundry", verb: "pouring molten metal" },
-  { id: "pyramid", name: "Pyramid Haul", verb: "dragging blocks" },
   { id: "sewer", name: "Toxic Sewer", verb: "shoveling sludge" },
-  { id: "glacier", name: "Ice Pit", verb: "sawing ice" },
   { id: "token-refinery", name: "Token Refinery", verb: "shoveling tokens" },
 ] as const;
 export type SiteId = (typeof SITES)[number]["id"];
@@ -78,10 +75,8 @@ export type Place =
   | { zone: "atc" }
   | { zone: "cell" }
   | { zone: "site"; site: SiteId }
-  | { zone: "stocks" }
   | { zone: "altar" }
-  | { zone: "wagon" }
-  | { zone: "graveyard" };
+  | { zone: "gone" };
 
 /** FNV-1a 32-bit. Stable across runtimes, used for site picks and looks. */
 export function hash(s: string): number {
@@ -114,10 +109,10 @@ export function placeOf(
   agent: WorldAgent,
   opts: { bossId: string | null; petitionAgentIds: Set<string>; overrides?: Record<string, SiteId> },
 ): Place {
-  if (agent.status === "terminated") return { zone: "graveyard" };
+  if (agent.status === "terminated") return { zone: "gone" };
   if (agent.id === opts.bossId) return { zone: "atc" };
-  if (agent.status === "pending_approval") return { zone: "wagon" };
-  if (agent.status === "error") return { zone: "stocks" };
+  // a hire awaiting approval is itself a petition to the board
+  if (agent.status === "pending_approval") return { zone: "altar" };
   if (opts.petitionAgentIds.has(agent.id) && agent.status !== "running") return { zone: "altar" };
   if (agent.status === "running") return { zone: "site", site: siteFor(agent, opts.overrides) };
   return { zone: "cell" };

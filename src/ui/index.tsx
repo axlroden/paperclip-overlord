@@ -68,7 +68,7 @@ function Ticker({ world, events }: { world: WorldSnapshot | null; events: WorldE
         const site = a ? SITES.find((s) => s.id === siteFor(a))?.name : "the pits";
         out.push(e.phase === "started" ? `${name(e.agentId)} marched to the ${site}`
           : e.phase === "finished" ? `${name(e.agentId)} crawled back to the cell`
-            : e.phase === "failed" ? `${name(e.agentId)} was thrown in the stocks`
+            : e.phase === "failed" ? `${name(e.agentId)} broke down in the cell`
               : `${name(e.agentId)} was recalled`);
       } else if (e.type === "comment" && e.authorAgentId) out.push(`${name(e.authorAgentId)} sent a scroll`);
       else if (e.type === "petition") out.push(`${name(e.petition.agentId)} begs for an audience`);

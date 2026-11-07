@@ -27,9 +27,9 @@ describe("placeOf", () => {
     expect(place(agent("a"))).toEqual({ zone: "cell" });
     expect(place(agent("a", { status: "active" }))).toEqual({ zone: "cell" });
     expect(place(agent("a", { status: "paused" }))).toEqual({ zone: "cell" });
-    expect(place(agent("a", { status: "error" }))).toEqual({ zone: "stocks" });
-    expect(place(agent("a", { status: "pending_approval" }))).toEqual({ zone: "wagon" });
-    expect(place(agent("a", { status: "terminated" }))).toEqual({ zone: "graveyard" });
+    expect(place(agent("a", { status: "error" }))).toEqual({ zone: "cell" });
+    expect(place(agent("a", { status: "pending_approval" }))).toEqual({ zone: "altar" });
+    expect(place(agent("a", { status: "terminated" }))).toEqual({ zone: "gone" });
     expect(place(agent("a", { status: "running" })).zone).toBe("site");
   });
   it("sends petitioners to the altar unless they are working", () => {
@@ -37,7 +37,7 @@ describe("placeOf", () => {
     expect(place(agent("a", { status: "running" }), ["a"]).zone).toBe("site");
   });
   it("terminated beats boss", () => {
-    expect(place(agent("boss", { status: "terminated" }))).toEqual({ zone: "graveyard" });
+    expect(place(agent("boss", { status: "terminated" }))).toEqual({ zone: "gone" });
   });
 });
 
@@ -48,7 +48,7 @@ describe("siteFor", () => {
     const b = agent("b", { task });
     expect(siteFor(a)).toBe(siteFor(b));
     expect(SITES.map((s) => s.id)).toContain(siteFor(a));
-    expect(siteFor(a, { a: "galley" })).toBe("galley");
+    expect(siteFor(a, { a: "sewer" })).toBe("sewer");
   });
   it("hash is FNV-1a", () => {
     expect(hash("")).toBe(0x811c9dc5);
