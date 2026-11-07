@@ -17,14 +17,21 @@
     "worker": "./dist/worker.js",
     "ui": "./dist/ui/"
   },
-  "files": ["dist", "assets"],
-  "engines": { "node": ">=24.11.0" },
-  "peerDependencies": { "react": ">=18" },
+  "files": [
+    "dist",
+    "assets"
+  ],
+  "engines": {
+    "node": ">=24.11.0"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  },
   "dependencies": {
     "pixi.js": "^8.22.0"
   },
   "devDependencies": {
-    "@paperclipai/plugin-sdk": "2026.1023.0",
+    "@paperclipai/plugin-sdk": "^2026.1106.0",
     "@types/node": "^24.0.0",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
