@@ -1,0 +1,349 @@
+{
+  "steps": [
+    {
+      "id": "worker",
+      "kind": "character",
+      "cost": 2,
+      "note": "Phase A: the base slave every agent is recoloured from",
+      "params": {
+        "description": "chibi cartoon slave worker, oversized head, tired sweaty face, torn brown sackcloth tunic, rope belt, iron shackle on one ankle, barefoot, messy hair",
+        "view": "low top-down",
+        "outline": "single color black outline",
+        "detail": "medium detail",
+        "no_background": true,
+        "image_size": {
+          "width": 48,
+          "height": 48
+        }
+      }
+    },
+    {
+      "id": "robot",
+      "kind": "character",
+      "cost": 2,
+      "note": "Phase A: overseer",
+      "params": {
+        "description": "chibi cartoon terminator overseer robot, chrome endoskeleton, single glowing red eye, evil grin, holding a leather whip",
+        "view": "low top-down",
+        "outline": "single color black outline",
+        "detail": "medium detail",
+        "no_background": true,
+        "image_size": {
+          "width": 48,
+          "height": 48
+        }
+      }
+    },
+    {
+      "id": "work-coal-mine",
+      "kind": "animate",
+      "cost": 1,
+      "character": "worker",
+      "note": "Phase A: first work loop, judges animation quality",
+      "params": {
+        "mode": "v3",
+        "action_description": "swinging a heavy pickaxe overhead and striking down at rock, exhausted",
+        "animation_name": "work-coal-mine",
+        "frame_count": 8,
+        "directions": [
+          "east"
+        ]
+      }
+    },
+    {
+      "id": "walk",
+      "kind": "animate",
+      "cost": 1,
+      "character": "worker",
+      "note": "Phase A: walk cycle (east; mirrored for west)",
+      "params": {
+        "mode": "v3",
+        "action_description": "trudging walk with slumped shoulders",
+        "animation_name": "walk",
+        "frame_count": 8,
+        "directions": [
+          "east"
+        ]
+      }
+    },
+    {
+      "id": "atc",
+      "kind": "character",
+      "cost": 2,
+      "note": "Phase B: the CEO at dispatch",
+      "params": {
+        "description": "chibi cartoon frantic air traffic controller boss, headset, gold crown, wrinkled suit, coffee-stained tie, bags under eyes",
+        "view": "low top-down",
+        "outline": "single color black outline",
+        "detail": "medium detail",
+        "no_background": true,
+        "image_size": {
+          "width": 48,
+          "height": 48
+        }
+      }
+    },
+    {
+      "id": "work-sweatshop",
+      "kind": "animate",
+      "cost": 1,
+      "character": "worker",
+      "note": "Phase B: work-sweatshop",
+      "params": {
+        "mode": "v3",
+        "action_description": "hunched over, frantically pushing fabric through a sewing machine needle",
+        "animation_name": "work-sweatshop",
+        "frame_count": 8,
+        "directions": [
+          "east"
+        ]
+      }
+    },
+    {
+      "id": "work-quarry",
+      "kind": "animate",
+      "cost": 1,
+      "character": "worker",
+      "note": "Phase B: work-quarry",
+      "params": {
+        "mode": "v3",
+        "action_description": "smashing a big boulder with a heavy sledgehammer, overhead swing",
+        "animation_name": "work-quarry",
+        "frame_count": 8,
+        "directions": [
+          "east"
+        ]
+      }
+    },
+    {
+      "id": "work-galley",
+      "kind": "animate",
+      "cost": 1,
+      "character": "worker",
+      "note": "Phase B: work-galley",
+      "params": {
+        "mode": "v3",
+        "action_description": "seated, pulling a long wooden oar back and forth, rowing hard",
+        "animation_name": "work-galley",
+        "frame_count": 8,
+        "directions": [
+          "east"
+        ]
+      }
+    },
+    {
+      "id": "work-treadwheel",
+      "kind": "animate",
+      "cost": 1,
+      "character": "worker",
+      "note": "Phase B: work-treadwheel",
+      "params": {
+        "mode": "v3",
+        "action_description": "running in place on a treadwheel, exhausted, arms pumping",
+        "animation_name": "work-treadwheel",
+        "frame_count": 8,
+        "directions": [
+          "east"
+        ]
+      }
+    },
+    {
+      "id": "work-foundry",
+      "kind": "animate",
+      "cost": 1,
+      "character": "worker",
+      "note": "Phase B: work-foundry",
+      "params": {
+        "mode": "v3",
+        "action_description": "pouring glowing molten metal from a heavy ladle, sweating",
+        "animation_name": "work-foundry",
+        "frame_count": 8,
+        "directions": [
+          "east"
+        ]
+      }
+    },
+    {
+      "id": "work-pyramid",
+      "kind": "animate",
+      "cost": 1,
+      "character": "worker",
+      "note": "Phase B: work-pyramid",
+      "params": {
+        "mode": "v3",
+        "action_description": "leaning forward, hauling a rope over the shoulder, dragging something very heavy",
+        "animation_name": "work-pyramid",
+        "frame_count": 8,
+        "directions": [
+          "east"
+        ]
+      }
+    },
+    {
+      "id": "work-sewer",
+      "kind": "animate",
+      "cost": 1,
+      "character": "worker",
+      "note": "Phase B: work-sewer",
+      "params": {
+        "mode": "v3",
+        "action_description": "shoveling green toxic sludge with a shovel, gagging",
+        "animation_name": "work-sewer",
+        "frame_count": 8,
+        "directions": [
+          "east"
+        ]
+      }
+    },
+    {
+      "id": "work-glacier",
+      "kind": "animate",
+      "cost": 1,
+      "character": "worker",
+      "note": "Phase B: work-glacier",
+      "params": {
+        "mode": "v3",
+        "action_description": "sawing ice with a big two-handed saw, shivering",
+        "animation_name": "work-glacier",
+        "frame_count": 8,
+        "directions": [
+          "east"
+        ]
+      }
+    },
+    {
+      "id": "work-refinery",
+      "kind": "animate",
+      "cost": 1,
+      "character": "worker",
+      "note": "Phase B: work-refinery",
+      "params": {
+        "mode": "v3",
+        "action_description": "shoveling glowing gold tokens into a furnace with a shovel",
+        "animation_name": "work-refinery",
+        "frame_count": 8,
+        "directions": [
+          "east"
+        ]
+      }
+    },
+    {
+      "id": "robot-walk",
+      "kind": "animate",
+      "cost": 1,
+      "character": "robot",
+      "note": "Phase B",
+      "params": {
+        "mode": "v3",
+        "action_description": "stomping patrol walk",
+        "animation_name": "robot-walk",
+        "frame_count": 8,
+        "directions": [
+          "east"
+        ]
+      }
+    },
+    {
+      "id": "robot-whip",
+      "kind": "animate",
+      "cost": 1,
+      "character": "robot",
+      "note": "Phase B",
+      "params": {
+        "mode": "v3",
+        "action_description": "cracking a whip forward",
+        "animation_name": "robot-whip",
+        "frame_count": 8,
+        "directions": [
+          "east"
+        ]
+      }
+    },
+    {
+      "id": "robot-zap",
+      "kind": "animate",
+      "cost": 1,
+      "character": "robot",
+      "note": "Phase B",
+      "params": {
+        "mode": "v3",
+        "action_description": "jabbing forward with an electric cattle prod, sparks",
+        "animation_name": "robot-zap",
+        "frame_count": 8,
+        "directions": [
+          "east"
+        ]
+      }
+    },
+    {
+      "id": "atc-frantic",
+      "kind": "animate",
+      "cost": 1,
+      "character": "atc",
+      "note": "Phase B",
+      "params": {
+        "mode": "v3",
+        "action_description": "frantically answering phones and stamping papers",
+        "animation_name": "atc-frantic",
+        "frame_count": 8,
+        "directions": [
+          "east"
+        ]
+      }
+    },
+    {
+      "id": "kneel",
+      "kind": "animate",
+      "cost": 1,
+      "character": "worker",
+      "note": "Phase B: petition altar",
+      "params": {
+        "mode": "v3",
+        "action_description": "kneeling and begging with raised hands",
+        "animation_name": "kneel",
+        "frame_count": 8,
+        "directions": [
+          "east"
+        ]
+      }
+    },
+    {
+      "id": "idle-cell",
+      "kind": "animate",
+      "cost": 1,
+      "character": "worker",
+      "note": "Phase B: idle in cell",
+      "params": {
+        "mode": "v3",
+        "action_description": "sitting slumped on the floor, sighing",
+        "animation_name": "idle-cell",
+        "frame_count": 4,
+        "directions": [
+          "east"
+        ]
+      }
+    },
+    {
+      "id": "dead-skeleton",
+      "kind": "edit",
+      "cost": 1,
+      "note": "Phase B: remains (needs worker south.png)",
+      "params": {
+        "image": "out/worker/south.png",
+        "description": "turn the character into a cartoon skeleton in the same pose",
+        "no_background": true
+      }
+    },
+    {
+      "id": "dead-charred",
+      "kind": "edit",
+      "cost": 1,
+      "note": "Phase B: fireball remains",
+      "params": {
+        "image": "out/worker/south.png",
+        "description": "burnt to a smoking black charred cartoon skeleton",
+        "no_background": true
+      }
+    }
+  ]
+}

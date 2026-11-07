@@ -1,0 +1,32 @@
+{
+  "worker": {
+    "character_id": "13390693-ff99-4df1-b4b4-43469e3f2621",
+    "started": "2026-11-07T02:35:23.081Z",
+    "done": "2026-11-07T02:37:53.399Z",
+    "spent": 2
+  },
+  "robot": {
+    "character_id": "ad75794f-db04-4b73-9d73-e0c11eece2c5",
+    "started": "2026-11-07T02:38:18.916Z",
+    "done": "2026-11-07T02:41:40.682Z",
+    "spent": 2
+  },
+  "work-coal-mine": {
+    "animation_group_id": "e9014c5b-d25a-47a1-a6e7-a8c153380c73",
+    "jobs": [
+      "6917e957-1062-4c7b-93bb-37091b522169"
+    ],
+    "started": "2026-11-07T02:42:00.374Z",
+    "done": "2026-11-07T02:43:45.823Z",
+    "spent": 1
+  },
+  "walk": {
+    "animation_group_id": "1cdcf0b7-1438-4caa-a5f3-b429a24d5bd5",
+    "jobs": [
+      "568451f5-3ab1-40ac-9be8-f12f6315fafe"
+    ],
+    "started": "2026-11-07T02:44:08.561Z",
+    "done": "2026-11-07T02:46:18.770Z",
+    "spent": 1
+  }
+}
