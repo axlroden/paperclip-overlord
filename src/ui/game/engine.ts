@@ -363,9 +363,7 @@ export class OverlordEngine {
   private route(actor: Actor, to: { x: number; y: number }) {
     if (actor.place.zone === "gone") { actor.x = to.x; actor.y = to.y; actor.path = []; return; }
     if (actor.death) { actor.path = []; return; } // finishes dying in place; setWorld routes it after
-    // the lane beside the destination row; for the middle row, the lane nearest the walker
-    const near = (y: number) => (y > (LANE_TOP + LANE_BOTTOM) / 2 ? LANE_BOTTOM : LANE_TOP);
-    const lane = to.y < LANE_TOP ? LANE_TOP : to.y > LANE_BOTTOM ? LANE_BOTTOM : near(actor.y);
+    const lane = laneFor(actor.y, to.y);
     actor.path = Math.abs(actor.x - to.x) < 2 && Math.abs(actor.y - to.y) < 20
       ? [to]
       : [{ x: actor.x, y: lane }, { x: to.x, y: lane }, to];
@@ -553,11 +551,15 @@ export class OverlordEngine {
       const workers = [...this.actors.values()].filter((a) => a.mode === "work" && !a.death);
       const v = workers.length ? pick(workers) : null;
       if (v) r.victim = v.a.id;
-      else { r.tx = rand(90, 270); r.ty = Math.random() < 0.5 ? LANE_TOP : LANE_BOTTOM; r.cooldownUntil = this.now + rand(2000, 5000); }
+      else { r.tx = rand(10, 370); r.ty = Math.random() < 0.5 ? LANE_TOP : LANE_BOTTOM; r.cooldownUntil = this.now + rand(2000, 5000); }
     }
     if (r.victim) { const v = this.actors.get(r.victim); if (v) { r.tx = v.x - 10; r.ty = v.y; } else r.victim = null; }
-    const dx = r.tx - r.x;
-    const dy = r.ty - r.y;
+    // robots keep to the lanes too, so they never walk through the prison behind its bars
+    const lane = laneFor(r.y, r.ty);
+    const goal = Math.abs(r.x - r.tx) <= 1 ? { x: r.tx, y: r.ty }
+      : Math.abs(r.y - lane) > 1 ? { x: r.x, y: lane } : { x: r.tx, y: lane };
+    const dx = goal.x - r.x;
+    const dy = goal.y - r.y;
     const d = Math.hypot(dx, dy);
     const step = 30 * (dt / 1000);
     const moving = d > step;
@@ -721,6 +723,13 @@ export class OverlordEngine {
     const py = Math.round(this.oy + y * this.zoom);
     el.style.transform = `translate(${px}px, ${py}px) translate(-50%, ${above ? "-100%" : "0"})`;
   }
+}
+
+/** The lane beside the destination row; for the middle row, the lane nearest the walker. */
+function laneFor(fromY: number, toY: number): number {
+  if (toY < LANE_TOP) return LANE_TOP;
+  if (toY > LANE_BOTTOM) return LANE_BOTTOM;
+  return fromY > (LANE_TOP + LANE_BOTTOM) / 2 ? LANE_BOTTOM : LANE_TOP;
 }
 
 function modeFor(actor: Actor): Mode {

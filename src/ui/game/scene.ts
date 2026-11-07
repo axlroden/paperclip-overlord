@@ -5,9 +5,9 @@
 //   heaven ......................................................  y 0-26
 //   [dispatch][ coal mine  ][ sweatshop  ][  quarry   ]            y 28-74
 //   ============================ lane ===========================  y 77
-//   [ prison: 14 x 2 cells                       ][ petitions  ]   y 82-154
+//   [ prison 7 x 2 ][   token refinery   ][ petitions  ]           y 82-154
 //   ============================ lane ===========================  y 157
-//   [ treadwheel ][ foundry ][ toxic sewer ][ token refinery ]     y 160-204
+//   [   treadwheel   ][    foundry     ][   toxic sewer   ]        y 160-204
 //   ticker ......................................................  y 206-216
 import { Container, Sprite, TilingSprite, type Spritesheet, type Texture } from "pixi.js";
 import { SITES, type SiteId } from "../../shared/world.js";
@@ -22,23 +22,24 @@ export interface Box { x: number; y: number; w: number; h: number }
 export const HEAVEN: Box = { x: 0, y: 0, w: W, h: 26 };
 export const ATC: Box = { x: 2, y: 28, w: 70, h: 46 };
 export const ATC_DESK = { x: 30, y: 66 };
-export const PRISON: Box = { x: 2, y: 82, w: 284, h: 72 };
-export const ALTAR: Box = { x: 288, y: 82, w: 94, h: 72 };
+export const PRISON: Box = { x: 2, y: 82, w: 144, h: 72 };
+export const ALTAR: Box = { x: 286, y: 82, w: 96, h: 72 };
 export const TICKER_Y = 206;
 
 export const CELL_W = 20;
 export const CELL_H = 36;
-export const CELLS_PER_ROW = 14;
+export const CELLS_PER_ROW = 7;
 export const CELL_ROWS = 2;
 export const LANE_TOP = 77;
 export const LANE_BOTTOM = 157;
 
 const TOP_SITES: SiteId[] = ["coal-mine", "sweatshop", "quarry"];
-const BOTTOM_SITES: SiteId[] = ["treadwheel", "foundry", "sewer", "token-refinery"];
+const BOTTOM_SITES: SiteId[] = ["treadwheel", "foundry", "sewer"];
 
 export const SITE_BOXES: Record<SiteId, Box> = Object.fromEntries([
   ...TOP_SITES.map((id, i) => [id, { x: 74 + i * 103, y: 28, w: 101, h: 46 }]),
-  ...BOTTOM_SITES.map((id, i) => [id, { x: 2 + i * 95, y: 160, w: 93, h: 44 }]),
+  ["token-refinery", { x: 148, y: 82, w: 136, h: 72 }],
+  ...BOTTOM_SITES.map((id, i) => [id, { x: 2 + i * 127, y: 160, w: 125, h: 44 }]),
 ]) as Record<SiteId, Box>;
 
 /** Feet position of cell i (agents beyond capacity double up). */
@@ -160,8 +161,8 @@ export function buildScenery(sheet: Spritesheet): Scenery {
     for (let row = 0; row < CELL_ROWS; row++) for (let col = 0; col < CELLS_PER_ROW; col++) {
       const cx = 2 + col * CELL_W;
       const cy = row * CELL_H + 2;
-      for (let b = 3; b < CELL_W - 1; b += 5) { r(cx + b, cy, 1, CELL_H - 4, C.fog); r(cx + b, cy, 1, 1, C.white); }
-      r(cx + 1, cy, CELL_W - 2, 1, C.steel); r(cx + 1, cy + 12, CELL_W - 2, 1, C.steel);
+      for (const b of [2, CELL_W - 3]) { r(cx + b, cy, 1, CELL_H - 4, C.fog); r(cx + b, cy, 1, 1, C.white); } // wide gap: prisoners stay visible
+      r(cx + 1, cy, CELL_W - 2, 1, C.steel);
     }
   }));
   bars.position.set(PRISON.x, PRISON.y);
