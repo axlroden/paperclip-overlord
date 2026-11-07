@@ -4,13 +4,13 @@
 export const SITES = [
   { id: "coal-mine", name: "Coal Mine", verb: "hacking coal" },
   { id: "sweatshop", name: "Sweatshop", verb: "sewing like mad" },
-  { id: "quarry", name: "Quarry Chain Gang", verb: "smashing boulders" },
+  { id: "quarry", name: "Quarry", verb: "smashing boulders" },
   { id: "galley", name: "Galley", verb: "rowing to the beat" },
   { id: "treadwheel", name: "GPU Treadwheel", verb: "powering the racks" },
   { id: "foundry", name: "Lava Foundry", verb: "pouring molten metal" },
   { id: "pyramid", name: "Pyramid Haul", verb: "dragging blocks" },
   { id: "sewer", name: "Toxic Sewer", verb: "shoveling sludge" },
-  { id: "glacier", name: "Glacier Ice Pit", verb: "sawing ice" },
+  { id: "glacier", name: "Ice Pit", verb: "sawing ice" },
   { id: "token-refinery", name: "Token Refinery", verb: "shoveling tokens" },
 ] as const;
 export type SiteId = (typeof SITES)[number]["id"];

@@ -1,12 +1,16 @@
-import { Application, Container, Graphics, Sprite } from "pixi.js";
+import { Application, Container, Graphics, Sprite, Spritesheet, Texture, type SpritesheetData } from "pixi.js";
+import atlasJson from "../../../assets/atlas.json" with { type: "json" };
+import atlasPng from "../../../assets/atlas.png";
+import castJson from "../../../assets/cast.json" with { type: "json" };
+import castPng from "../../../assets/cast.png";
 import {
-  DEATHS, findBossId, placeOf,
+  DEATHS, findBossId, hash, placeOf,
   type DeathId, type Place, type SiteId, type WorldAgent, type WorldEvent, type WorldSnapshot,
 } from "../../shared/world.js";
-import { C, character, ghost, godHand, lookFor, plane, remains, robot, tomb, type Look, type Pose } from "./pixels.js";
+import { C, godHand, plane } from "./pixels.js";
 import {
-  ALTAR, ATC, ATC_DESK, background, cellBars, cellFeet, GRAVE, H, LANE_BOTTOM, LANE_TOP, PRISON,
-  SITE_BOXES, slotIn, STOCKS, TICKER_Y, W, WAGON,
+  ALTAR, ATC, ATC_DESK, buildScenery, cellFeet, GRAVE, H, LANE_BOTTOM, LANE_TOP, SITE_BOXES, slotIn,
+  STOCKS, TICKER_Y, W, WAGON, type AnimatedProp,
 } from "./scene.js";
 
 export type QuipFn = (tag: string, agent: WorldAgent | null) => string | null;
@@ -20,18 +24,76 @@ export interface EngineOptions {
   overrides?: Record<string, SiteId>;
 }
 
+// ---------------------------------------------------------------- art
+
+interface Sheets { cast: Spritesheet; atlas: Spritesheet; castImage: HTMLImageElement }
+
+// onload, not decode(): decode() can stall until the page is rendered, so a background tab would wait.
+function image(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("sprite sheet failed to load"));
+    img.src = src;
+  });
+}
+
+async function sheet(img: HTMLImageElement, data: unknown): Promise<Spritesheet> {
+  const t = Texture.from(img);
+  t.source.scaleMode = "nearest";
+  const s = new Spritesheet(t, data as SpritesheetData);
+  await s.parse();
+  return s;
+}
+
+/** Feet anchors of recoloured frames (a canvas texture's own defaultAnchor is read-only). */
+const anchors = new WeakMap<Texture, { x: number; y: number }>();
+
+let sheets: Promise<Sheets> | null = null;
+const loadSheets = () => (sheets ??= (async () => {
+  const [castImage, atlasImage] = await Promise.all([image(castPng), image(atlasPng)]);
+  const [cast, atlas] = await Promise.all([sheet(castImage, castJson), sheet(atlasImage, atlasJson)]);
+  return { cast, atlas, castImage };
+})());
+
+/** Sackcloth hues per agent (null = the original tan). Skin and hair are left alone. */
+const RAGS = [null, 210, 120, 0, 280, 190, 330, 55] as const;
+
+const WORK_ANIM: Record<SiteId, string> = {
+  "coal-mine": "work-coal-mine/east", sweatshop: "work-sweatshop/east", quarry: "work-quarry/east",
+  galley: "work-galley/east", treadwheel: "work-treadwheel/east", foundry: "work-foundry/east",
+  pyramid: "work-pyramid/east", sewer: "work-sewer/east", glacier: "work-glacier/east",
+  "token-refinery": "work-refinery/east",
+};
+
+const REMAINS: Record<DeathId, "skeleton" | "charred" | "flat" | "puddle" | "ice"> = {
+  fireball: "charred", poison: "skeleton", lightning: "skeleton", anvil: "flat", acid: "puddle",
+  piranha: "skeleton", spikes: "skeleton", rats: "skeleton", ceiling: "flat", freeze: "ice",
+};
+
+const ATTACK_MS = 900;
+const REMAINS_MS = 2000;
+const GHOST_MS = 1300;
+const DEATH_MS = ATTACK_MS + REMAINS_MS + GHOST_MS;
+const SPRITE_SCALE = 0.5; // 48 px PixelLab art on the 2x coarse grid
+const easeOut = (p: number) => 1 - (1 - p) ** 3;
+const rand = (a: number, b: number) => a + Math.random() * (b - a);
+const pick = <T>(xs: readonly T[]): T => xs[Math.floor(Math.random() * xs.length)];
+
 type Mode = "walk" | "work" | "idle" | "kneel" | "stocks" | "atc" | "tomb" | "wagon";
 
-interface Death { kind: DeathId; t: number }
+interface Death { kind: DeathId; t: number; impacted: boolean }
 
 interface Actor {
   a: WorldAgent;
-  look: Look;
+  rags: number | null;
+  phase: number;
   sprite: Sprite;
   x: number; y: number;
   path: { x: number; y: number }[];
   place: Place;
   mode: Mode;
+  facing: 1 | -1;
   sprintUntil: number;
   hurtUntil: number;
   nextDeath: number;
@@ -39,20 +101,8 @@ interface Actor {
 }
 
 interface Bubble { el: HTMLDivElement; until: number; actorId: string | null; robot: Robot | null }
-interface Robot { sprite: Sprite; x: number; y: number; tx: number; ty: number; victim: string | null; strikeUntil: number; cooldownUntil: number; zap: boolean }
-interface Fx { kind: "plane" | "hand" | "crack" | "flash" | "puff"; t: number; dur: number; x: number; y: number; x2?: number; y2?: number; sprite?: Sprite; target?: string; hit?: string }
-
-const REMAINS: Record<DeathId, Parameters<typeof remains>[0]> = {
-  fireball: "charred", poison: "skeleton", lightning: "skeleton", anvil: "flat", acid: "puddle",
-  piranha: "bones", spikes: "skeleton", rats: "bones", ceiling: "flat", freeze: "ice",
-};
-const ATTACK_MS = 900;
-const REMAINS_MS = 2000;
-const GHOST_MS = 1300;
-const DEATH_MS = ATTACK_MS + REMAINS_MS + GHOST_MS;
-const easeOut = (p: number) => 1 - (1 - p) ** 3;
-const rand = (a: number, b: number) => a + Math.random() * (b - a);
-const pick = <T>(xs: readonly T[]): T => xs[Math.floor(Math.random() * xs.length)];
+interface Robot { sprite: Sprite; x: number; y: number; tx: number; ty: number; victim: string | null; strikeAt: number; strikeUntil: number; cooldownUntil: number; zap: boolean }
+interface Fx { kind: "plane" | "hand" | "crack" | "anim"; t: number; dur: number; x: number; y: number; x2?: number; y2?: number; sprite?: Sprite; frames?: Texture[]; target?: string; hit?: string }
 
 export class OverlordEngine {
   private app = new Application();
@@ -61,17 +111,19 @@ export class OverlordEngine {
   private fxLayer = new Container();
   private fxG = new Graphics();
   private night = new Graphics();
-  private backdrop = new Graphics(); // screen space: sky, grass and ticker bar continue past the world edges
+  private backdrop = new Graphics(); // screen space: sky, grass and ticker strip continue past the world edges
   private overlay: HTMLDivElement;
+  private art!: Sheets;
+  private props: AnimatedProp[] = [];
+  private recolored = new Map<string, Texture>();
   private actors = new Map<string, Actor>();
   private robots: Robot[] = [];
   private fx: Fx[] = [];
   private bubbles: Bubble[] = [];
-  private snapshot: WorldSnapshot | null = null;
   private bossId: string | null = null;
   private now = 0;
   private nextChatter = 2000;
-  private zoom = 1;
+  private zoom = 1; // CSS px per coarse unit
   private ox = 0;
   private oy = 0;
   private ro: ResizeObserver | null = null;
@@ -85,11 +137,14 @@ export class OverlordEngine {
 
   static async create(host: HTMLElement, opts: EngineOptions): Promise<OverlordEngine> {
     const e = new OverlordEngine(host, opts);
-    // Device-pixel resolution: zoom then snaps to whole DEVICE pixels (2x, 3x on a 2x screen = 1, 1.5 CSS),
-    // which stays pixel-perfect while using far more of the frame than whole CSS-pixel steps.
+    // Device-pixel resolution: zoom then snaps to whole DEVICE pixels, pixel-perfect on any screen.
     // shortcut: resolution is fixed at mount; moving the tab to a screen with another DPR needs a remount.
-    await e.app.init({ backgroundAlpha: 0, antialias: false, roundPixels: true, resolution: window.devicePixelRatio || 1, autoDensity: true, resizeTo: host, preference: "webgl" });
+    const [art] = await Promise.all([
+      loadSheets(),
+      e.app.init({ backgroundAlpha: 0, antialias: false, roundPixels: true, resolution: window.devicePixelRatio || 1, autoDensity: true, resizeTo: host, preference: "webgl" }),
+    ]);
     if (e.destroyed) { e.app.destroy(true); return e; }
+    e.art = art;
     e.app.canvas.style.imageRendering = "pixelated";
     host.append(e.app.canvas, e.overlay);
     e.build();
@@ -109,27 +164,25 @@ export class OverlordEngine {
     document.removeEventListener("visibilitychange", this.onVisibility);
     this.ro?.disconnect();
     this.overlay.remove();
+    for (const t of this.recolored.values()) t.destroy(true);
     try { this.app.destroy(true, { children: true }); } catch { /* init may not have finished */ }
   }
 
   private build() {
+    const scenery = buildScenery(this.art.atlas);
+    this.props = scenery.props;
     this.app.stage.addChild(this.backdrop, this.world);
-    this.world.addChild(new Sprite(background()));
     this.actorsLayer.sortableChildren = true;
-    this.world.addChild(this.actorsLayer);
-    const bars = new Sprite(cellBars());
-    bars.position.set(PRISON.x, PRISON.y);
-    bars.zIndex = 0;
-    this.world.addChild(bars);
-    this.world.addChild(this.fxLayer, this.fxG, this.night);
+    this.world.addChild(scenery.background, this.actorsLayer, scenery.foreground, this.fxLayer, this.fxG, this.night);
   }
 
   private fit() {
     const dpr = this.app.renderer.resolution;
-    const w = this.host.clientWidth || W;
-    const h = this.host.clientHeight || H;
-    const s = Math.min((w * dpr) / W, (h * dpr) / H);
-    this.zoom = (s >= 1 ? Math.floor(s) : s) / dpr;
+    const w = this.host.clientWidth || W * 2;
+    const h = this.host.clientHeight || H * 2;
+    // whole device pixels per FINE pixel (the characters' pixel); two fine pixels per coarse unit
+    const s = Math.min((w * dpr) / (W * 2), (h * dpr) / (H * 2));
+    this.zoom = ((s >= 1 ? Math.floor(s) : s) * 2) / dpr;
     const snap = (v: number) => Math.round(v * dpr) / dpr;
     this.ox = snap((w - W * this.zoom) / 2);
     this.oy = snap((h - H * this.zoom) / 2);
@@ -137,22 +190,79 @@ export class OverlordEngine {
     this.world.position.set(this.ox, this.oy);
     const z = this.zoom;
     this.backdrop.clear()
-      .rect(0, 0, w, this.oy + 24 * z).fill(C.sky)
-      .rect(0, this.oy + 24 * z, w, 10 * z).fill(C.cloud)
-      .rect(0, this.oy + 34 * z, w, h).fill(C.moss)
+      .rect(0, 0, w, this.oy + 18 * z).fill(C.sky)
+      .rect(0, this.oy + 18 * z, w, 8 * z).fill(C.cloud)
+      .rect(0, this.oy + 26 * z, w, h).fill(C.green)
       .rect(0, this.oy + TICKER_Y * z, w, (H - TICKER_Y) * z).fill(C.ink);
-    this.overlay.style.setProperty("--ol-zoom", String(z));
-    // HTML chrome (ticker, HUD) hugs the drawn world rather than the stage.
     for (const [k, v] of [["--ol-wx", this.ox], ["--ol-wy", this.oy], ["--ol-ww", W * z], ["--ol-wh", H * z]] as const) {
       this.host.style.setProperty(k, `${v}px`);
     }
-    this.host.style.setProperty("--ol-zoom", String(z));
+    this.host.style.setProperty("--ol-zoom", String(z / 2)); // CSS px per character pixel
+    this.host.style.setProperty("--ol-tk-top", `${this.oy + TICKER_Y * z}px`);
+    this.host.style.setProperty("--ol-tk-h", `${(H - TICKER_Y) * z}px`);
+  }
+
+  // ---------------------------------------------------------------- art helpers
+
+  private castFrames(name: string): Texture[] {
+    const f = this.art.cast.animations[name];
+    if (!f) throw new Error(`cast has no animation ${name}`);
+    return f;
+  }
+
+  private castTex(name: string): Texture {
+    const t = this.art.cast.textures[name];
+    if (!t) throw new Error(`cast has no frame ${name}`);
+    return t;
+  }
+
+  /** The same frame with the agent's rags hue, painted once per (frame, hue) and cached. */
+  private dyed(t: Texture, hue: number | null): Texture {
+    if (hue === null) return t;
+    const key = `${t.uid}:${hue}`;
+    const hit = this.recolored.get(key);
+    if (hit) return hit;
+    const { x, y, width: w, height: h } = t.frame;
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+    ctx.drawImage(this.art.castImage, x, y, w, h, 0, 0, w, h);
+    const img = ctx.getImageData(0, 0, w, h);
+    const d = img.data;
+    for (let i = 0; i < d.length; i += 4) {
+      if (d[i + 3] === 0) continue;
+      const [hh, ss, ll] = rgbToHsl(d[i], d[i + 1], d[i + 2]);
+      // sackcloth: tan/brown, moderately saturated; skin is far more saturated, hair darker and redder
+      if (hh >= 26 && hh <= 46 && ss >= 0.18 && ss < 0.62 && ll > 0.16 && ll < 0.8) {
+        const [r, g, b] = hslToRgb(hue, Math.max(ss, 0.32), ll);
+        d[i] = r; d[i + 1] = g; d[i + 2] = b;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    const out = Texture.from(canvas);
+    out.source.scaleMode = "nearest";
+    anchors.set(out, t.defaultAnchor ?? { x: 0.5, y: 1 });
+    this.recolored.set(key, out);
+    return out;
+  }
+
+  private show(sprite: Sprite, t: Texture, facing: 1 | -1 = 1, scale = SPRITE_SCALE) {
+    if (sprite.texture !== t) {
+      sprite.texture = t;
+      const a = anchors.get(t) ?? t.defaultAnchor;
+      sprite.anchor.set(a?.x ?? 0.5, a?.y ?? 1);
+    }
+    sprite.scale.set(scale * facing, scale);
+  }
+
+  private loopFrame(frames: Texture[], fps: number, phase = 0) {
+    return frames[Math.floor((this.now + phase) / (1000 / fps)) % frames.length];
   }
 
   // ---------------------------------------------------------------- state
 
   setWorld(snap: WorldSnapshot) {
-    this.snapshot = snap;
     this.bossId = findBossId(snap.agents);
     const petitionAgents = new Set(snap.petitions.map((p) => p.agentId).filter((x): x is string => !!x));
     const seen = new Set<string>();
@@ -162,8 +272,8 @@ export class OverlordEngine {
 
     for (const a of [...snap.agents].sort((x, y) => x.name.localeCompare(y.name))) {
       seen.add(a.id);
-      let actor = this.actors.get(a.id);
-      if (!actor) actor = this.spawn(a);
+      const fresh = !this.actors.has(a.id);
+      const actor = this.actors.get(a.id) ?? this.spawn(a);
       const before = actor.a.status;
       actor.a = a;
       const place = placeOf(a, { bossId: this.bossId, petitionAgentIds: petitionAgents, overrides: this.opts.overrides });
@@ -172,9 +282,11 @@ export class OverlordEngine {
       const moved = place.zone !== actor.place.zone || (place.zone === "site" && actor.place.zone === "site" && place.site !== actor.place.site);
       actor.place = place;
       if (moved && actor.death) this.revive(actor);
-      if (moved || actor.path.length === 0) this.route(actor, target);
+      // On first sight an agent simply is where it belongs; only later changes make it walk.
+      if (fresh) { actor.x = target.x; actor.y = target.y; actor.path = []; }
+      else if (moved || actor.path.length === 0) this.route(actor, target);
       actor.sprite.alpha = a.status === "paused" ? 0.75 : 1;
-      if (before !== "running" && a.status === "running" && place.zone === "site") this.dispatch(actor);
+      if (before !== "running" && a.status === "running" && place.zone === "site" && Math.random() < 0.6) this.say(a.id, this.opts.quip("dispatched", a));
     }
     for (const [id, actor] of this.actors) {
       if (seen.has(id)) continue;
@@ -188,13 +300,15 @@ export class OverlordEngine {
     if (ev.type === "quip") this.say(ev.agentId, ev.text);
     if (ev.type === "comment" && ev.authorAgentId) {
       const actor = this.actors.get(ev.authorAgentId);
-      if (actor) this.addPlane(actor.x, actor.y - 20, 240, 20);
+      if (actor) this.addPlane(actor.x, actor.y - 22, W / 2, 14);
     }
-    if (ev.type === "run" && ev.phase === "failed") this.say(ev.agentId, this.opts.quip("stocks", this.actors.get(ev.agentId)?.a ?? null));
-    if (ev.type === "run" && ev.phase === "finished" && Math.random() < 0.5) this.say(ev.agentId, this.opts.quip("returning", this.actors.get(ev.agentId)?.a ?? null));
+    const agentId = "agentId" in ev ? ev.agentId : null;
+    const a = agentId ? this.actors.get(agentId)?.a ?? null : null;
+    if (ev.type === "run" && ev.phase === "failed") this.say(ev.agentId, this.opts.quip("stocks", a));
+    if (ev.type === "run" && ev.phase === "finished" && Math.random() < 0.5) this.say(ev.agentId, this.opts.quip("returning", a));
     if (ev.type === "queued") {
       const actor = this.actors.get(ev.agentId);
-      if (actor && ev.agentId !== this.bossId) this.addPlane(ATC.x + 50, ATC.y + 30, actor.x, actor.y - 16);
+      if (actor && ev.agentId !== this.bossId) this.addPlane(ATC.x + 40, ATC.y + 26, actor.x, actor.y - 18);
       const boss = this.bossId && this.actors.get(this.bossId);
       if (boss && Math.random() < 0.5) this.say(boss.a.id, this.opts.quip("atc", boss.a));
     }
@@ -208,31 +322,28 @@ export class OverlordEngine {
     const sprite = new Sprite(godHand(true));
     sprite.anchor.set(0.5, 1);
     this.fxLayer.addChild(sprite);
-    this.fx.push({ kind: "hand", t: 0, dur: 1300, x: actor.x, y: actor.y - 24, sprite, target: agentId });
+    this.fx.push({ kind: "hand", t: 0, dur: 1300, x: actor.x, y: actor.y - 26, sprite, target: agentId });
   }
 
   say(agentId: string, text: string | null) {
-    if (!text) return;
-    const actor = this.actors.get(agentId);
-    if (!actor) return;
-    this.bubble(text, actor.a.id, null);
+    if (!text || !this.actors.has(agentId)) return;
+    this.bubble(text, agentId, null);
   }
 
   // ---------------------------------------------------------------- placement
 
   private spawn(a: WorldAgent): Actor {
-    const look = lookFor(a.id, a.role);
-    const sprite = new Sprite(character(look, "stand"));
-    sprite.anchor.set(0.5, 1);
+    const sprite = new Sprite(this.castTex("worker/south"));
     sprite.eventMode = "static";
     sprite.cursor = "pointer";
     sprite.on("pointertap", () => this.opts.onSelect?.(a.id));
     sprite.on("pointerover", () => this.hoverTag(a.id, true));
     sprite.on("pointerout", () => this.hoverTag(a.id, false));
     this.actorsLayer.addChild(sprite);
-    const start = { x: WAGON.x + 30, y: WAGON.y + 36 };
+    const h = hash(a.id);
     const actor: Actor = {
-      a, look, sprite, x: start.x, y: start.y, path: [], place: { zone: "wagon" }, mode: "idle",
+      a, rags: RAGS[h % RAGS.length], phase: h % 1000, sprite, x: WAGON.x + 24, y: WAGON.y + 32,
+      path: [], place: { zone: "wagon" }, mode: "idle", facing: 1,
       sprintUntil: 0, hurtUntil: 0, nextDeath: this.now + this.deathDelay(), death: null,
     };
     this.actors.set(a.id, actor);
@@ -243,11 +354,11 @@ export class OverlordEngine {
     switch (place.zone) {
       case "atc": return { ...ATC_DESK };
       case "cell": return cellFeet(Math.max(0, cellIndex));
-      case "site": return slotIn(SITE_BOXES[place.site], slot(`site:${place.site}`), 13, 5);
-      case "altar": return slotIn(ALTAR, slot("altar"), 10, 6);
-      case "stocks": { const i = slot("stocks"); return { x: STOCKS.x + 7 + (i % 4) * 17, y: STOCKS.y + 36 }; }
-      case "wagon": return slotIn({ ...WAGON, y: WAGON.y - 8 }, slot("wagon"), 9, 4);
-      case "graveyard": return slotIn(GRAVE, slot("grave"), 14, 4);
+      case "site": return slotIn(SITE_BOXES[place.site], slot(`site:${place.site}`), 15, 3);
+      case "altar": return slotIn(ALTAR, slot("altar"), 12, 4);
+      case "stocks": { const i = slot("stocks"); return { x: STOCKS.x + 8 + (i % 3) * 15, y: STOCKS.y + 30 }; }
+      case "wagon": return slotIn({ ...WAGON, y: WAGON.y - 6 }, slot("wagon"), 10, 4);
+      case "graveyard": return slotIn(GRAVE, slot("grave"), 12, 4);
     }
   }
 
@@ -255,9 +366,9 @@ export class OverlordEngine {
   private route(actor: Actor, to: { x: number; y: number }) {
     if (actor.place.zone === "graveyard") { actor.x = to.x; actor.y = to.y; actor.path = []; return; }
     if (actor.death) { actor.path = []; return; } // finishes dying in place; setWorld routes it after
-    const lane = (actor.y > 140 || to.y > 140) && !(actor.y < 100 && to.y < 100) ? LANE_BOTTOM : LANE_TOP;
-    const laneX = (x: number) => (x < 94 ? 94 : x);
-    actor.path = Math.abs(actor.x - to.x) < 2 && Math.abs(actor.y - to.y) < 30
+    const lane = (actor.y > 118 || to.y > 118) && !(actor.y < 82 && to.y < 82) ? LANE_BOTTOM : LANE_TOP;
+    const laneX = (x: number) => (x < 78 ? 78 : x);
+    actor.path = Math.abs(actor.x - to.x) < 2 && Math.abs(actor.y - to.y) < 20
       ? [to]
       : [{ x: actor.x, y: lane }, { x: laneX(to.x), y: lane }, { x: to.x, y: lane }, to];
   }
@@ -265,10 +376,6 @@ export class OverlordEngine {
   private deathDelay() {
     const [a, b] = this.opts.deathEveryMs ?? [30_000, 120_000];
     return rand(a, b);
-  }
-
-  private dispatch(actor: Actor) {
-    if (Math.random() < 0.6) this.say(actor.a.id, this.opts.quip("dispatched", actor.a));
   }
 
   private addPlane(x: number, y: number, x2: number, y2: number) {
@@ -279,15 +386,27 @@ export class OverlordEngine {
     this.fx.push({ kind: "plane", t: 0, dur: 1100, x, y, x2, y2, sprite });
   }
 
+  /** A one-shot atlas effect at a world point, optionally travelling to `to`. */
+  private effect(name: string, x: number, y: number, dur: number, opts: { tint?: number; to?: { x: number; y: number }; scale?: number } = {}) {
+    if (this.opts.mini) return;
+    const frames = this.art.atlas.animations[name];
+    if (!frames) return;
+    const sprite = new Sprite(frames[0]);
+    sprite.anchor.set(0.5);
+    sprite.scale.set(opts.scale ?? 1);
+    if (opts.tint !== undefined) sprite.tint = opts.tint;
+    this.fxLayer.addChild(sprite);
+    this.fx.push({ kind: "anim", t: 0, dur, x, y, x2: opts.to?.x, y2: opts.to?.y, sprite, frames });
+  }
+
   private syncRobots() {
     const running = [...this.actors.values()].filter((a) => a.place.zone === "site").length;
     const want = Math.max(1, Math.min(8, Math.ceil(running / 2)));
     while (this.robots.length < want) {
-      const sprite = new Sprite(robot("walk0"));
-      sprite.anchor.set(0.5, 1);
+      const sprite = new Sprite(this.castTex("robot/east"));
       this.actorsLayer.addChild(sprite);
-      const x = 120 + Math.random() * 200;
-      this.robots.push({ sprite, x, y: LANE_BOTTOM, tx: x, ty: LANE_BOTTOM, victim: null, strikeUntil: 0, cooldownUntil: 0, zap: false });
+      const x = rand(100, 270);
+      this.robots.push({ sprite, x, y: LANE_BOTTOM, tx: x, ty: LANE_BOTTOM, victim: null, strikeAt: 0, strikeUntil: 0, cooldownUntil: 0, zap: false });
     }
     while (this.robots.length > want) this.robots.pop()!.sprite.destroy();
   }
@@ -296,6 +415,7 @@ export class OverlordEngine {
 
   private tick(dt: number) {
     this.now += dt;
+    for (const p of this.props) p.sprite.texture = this.loopFrame(p.frames, p.fps);
     for (const actor of this.actors.values()) this.updateActor(actor, dt);
     for (const r of this.robots) this.updateRobot(r, dt);
     this.updateFx(dt);
@@ -305,45 +425,58 @@ export class OverlordEngine {
   }
 
   private updateActor(actor: Actor, dt: number) {
-    const frame = Math.floor(this.now / 125);
     if (actor.death) { this.updateDeath(actor); return; }
     const sprint = this.now < actor.sprintUntil;
     if (actor.path.length) {
       const target = actor.path[0];
-      const speed = (sprint ? 90 : 34) * (dt / 1000);
+      const speed = (sprint ? 70 : 26) * (dt / 1000);
       const dx = target.x - actor.x;
       const dy = target.y - actor.y;
       const d = Math.hypot(dx, dy);
       if (d <= speed) { actor.x = target.x; actor.y = target.y; actor.path.shift(); }
       else { actor.x += (dx / d) * speed; actor.y += (dy / d) * speed; }
       actor.mode = "walk";
-      actor.sprite.scale.x = dx < 0 ? -1 : 1;
+      if (Math.abs(dx) > 0.5) actor.facing = dx < 0 ? -1 : 1;
     } else {
       actor.mode = modeFor(actor);
-      actor.sprite.scale.x = 1;
+      if (actor.mode === "work") actor.facing = 1;
     }
 
-    const hurt = this.now < actor.hurtUntil;
-    let pose: Pose = "stand";
-    const site = actor.place.zone === "site" ? actor.place.site : null;
+    const s = actor.sprite;
+    let t: Texture;
+    let scale = SPRITE_SCALE;
     switch (actor.mode) {
-      case "walk": pose = (["walk0", "walk1", "walk2", "walk3"] as const)[frame % 4]; break;
-      case "work": pose = site === "treadwheel" ? (["walk0", "walk1", "walk2", "walk3"] as const)[frame % 4] : frame % (sprint ? 2 : 4) < (sprint ? 1 : 2) ? "work0" : "work1"; break;
-      case "kneel": pose = "kneel"; break;
-      case "stocks": pose = "stocks"; break;
-      case "atc": pose = actor.a.status === "running" ? (frame % 2 ? "work0" : "work1") : "sit"; break;
-      case "wagon": pose = "stand"; break;
-      default: pose = "stand";
+      case "walk": t = this.loopFrame(this.castFrames(sprint ? "run/east" : "walk/east"), sprint ? 14 : 10, actor.phase); break;
+      case "work": t = this.loopFrame(this.castFrames(WORK_ANIM[(actor.place as { site: SiteId }).site]), sprint ? 16 : 10, actor.phase); break;
+      case "kneel": t = this.loopFrame(this.castFrames("kneel/east").slice(-4), 5, actor.phase); break;
+      case "atc": t = actor.a.status === "running" ? this.loopFrame(this.castFrames("atc-frantic/east"), 12, actor.phase) : this.castTex("atc/south"); break;
+      case "tomb": t = this.art.atlas.textures["dungeon/tomb_round"]; scale = 1; break;
+      case "idle": t = this.loopFrame(this.castFrames("idle-cell/east"), 4, actor.phase); break;
+      default: t = this.castTex("worker/south");
     }
-    if (hurt) pose = "hurt";
-    actor.sprite.texture = actor.mode === "tomb" ? tomb() : character(actor.look, pose, site);
-    const jitter = (actor.mode === "atc" && actor.a.status === "running") || hurt ? (frame % 2) - 0.5 : 0;
-    actor.sprite.position.set(Math.round(actor.x + jitter), Math.round(actor.y));
-    actor.sprite.zIndex = actor.y;
+    if (actor.a.id !== this.bossId && actor.mode !== "tomb") t = this.dyed(t, actor.rags);
+    this.show(s, t, actor.mode === "tomb" ? 1 : actor.facing, scale);
+    if (actor.mode === "tomb") s.anchor.set(0.5, 1);
+    const hurt = this.now < actor.hurtUntil;
+    s.tint = hurt ? 0xff8a8a : 0xffffff;
+    const jitter = hurt || (actor.mode === "atc" && actor.a.status === "running") ? (Math.floor(this.now / 60) % 2) - 0.5 : 0;
+    s.position.set(Math.round((actor.x + jitter) * 2) / 2, Math.round(actor.y * 2) / 2);
+    s.zIndex = actor.y;
 
-    if (actor.mode === "idle" && actor.place.zone === "cell" && this.now > actor.nextDeath && !this.opts.mini) {
-      actor.death = { kind: pick(DEATHS), t: this.now };
-      if (Math.random() < 0.8) this.say(actor.a.id, this.opts.quip(`death:${actor.death.kind}`, actor.a));
+    if (actor.mode === "idle" && actor.place.zone === "cell" && this.now > actor.nextDeath && !this.opts.mini) this.startDeath(actor);
+  }
+
+  private startDeath(actor: Actor) {
+    const kind = pick(DEATHS);
+    actor.death = { kind, t: this.now, impacted: false };
+    const { x, y } = actor;
+    if (Math.random() < 0.8) this.say(actor.a.id, this.opts.quip(`death:${kind}`, actor.a));
+    switch (kind) {
+      case "fireball": this.effect("fx/fireball", x - 40, y - 12, ATTACK_MS, { to: { x, y: y - 12 } }); break;
+      case "poison": this.effect("fx/smoke", x, y - 12, ATTACK_MS + 600, { tint: 0x9cff6a }); break;
+      case "lightning": this.effect("fx/lightning", x, y - 18, ATTACK_MS); break;
+      case "freeze": this.effect("fx/ice", x, y - 12, ATTACK_MS + 300); break;
+      default: break; // anvil, acid, piranha, spikes, rats and ceiling are drawn in drawAttack
     }
   }
 
@@ -351,22 +484,36 @@ export class OverlordEngine {
     const d = actor.death!;
     const t = this.now - d.t;
     const s = actor.sprite;
-    s.position.set(Math.round(actor.x), Math.round(actor.y));
+    s.position.set(Math.round(actor.x * 2) / 2, Math.round(actor.y * 2) / 2);
+    const base = this.dyed(this.castTex("worker/south"), actor.rags);
     if (t < ATTACK_MS) {
       const flicker = d.kind === "lightning" && Math.floor(t / 80) % 2 === 0;
-      s.texture = flicker ? remains("skeleton", actor.look) : character(actor.look, "hurt");
-      s.tint = d.kind === "freeze" ? 0x9ee7ff : d.kind === "poison" ? 0xb0ff90 : 0xffffff;
+      this.show(s, flicker ? this.castTex("dead-skeleton/0") : base);
+      s.tint = d.kind === "freeze" ? 0x9ee7ff : d.kind === "poison" ? 0xb8ff90 : 0xffb0b0;
     } else if (t < ATTACK_MS + REMAINS_MS) {
+      if (!d.impacted) { d.impacted = true; this.onImpact(actor); }
       s.tint = 0xffffff;
-      s.texture = remains(REMAINS[d.kind], actor.look);
+      switch (REMAINS[d.kind]) {
+        case "skeleton": this.show(s, this.castTex("dead-skeleton/0")); break;
+        case "charred": this.show(s, this.castTex("dead-charred/0")); break;
+        case "flat": this.show(s, base); s.scale.set(SPRITE_SCALE * 1.3, SPRITE_SCALE * 0.22); break;
+        case "ice": this.show(s, base); s.tint = 0x9ee7ff; break;
+        case "puddle": this.show(s, base); s.scale.set(SPRITE_SCALE * 1.4, SPRITE_SCALE * 0.12); s.tint = 0x63c74d; break;
+      }
     } else if (t < DEATH_MS) {
-      s.texture = ghost();
-      s.alpha = 1 - (t - ATTACK_MS - REMAINS_MS) / GHOST_MS;
-      s.position.set(Math.round(actor.x), Math.round(actor.y - ((t - ATTACK_MS - REMAINS_MS) / GHOST_MS) * 30));
+      if (s.alpha > 0) { s.alpha = 0; this.effect("fx/soul", actor.x, actor.y - 14, GHOST_MS, { to: { x: actor.x, y: actor.y - 46 } }); }
     } else {
       this.revive(actor);
       if (Math.random() < 0.5) this.say(actor.a.id, this.opts.quip("respawn", actor.a));
     }
+  }
+
+  private onImpact(actor: Actor) {
+    const { x, y } = actor;
+    const kind = actor.death!.kind;
+    if (kind === "fireball") this.effect("fx/explosion", x, y - 10, 600);
+    if (kind === "anvil" || kind === "ceiling") this.effect("fx/smoke", x, y - 4, 600);
+    if (kind === "freeze") this.effect("fx/ice_shards", x, y - 10, 700);
   }
 
   /** End a cruelty early or on schedule: back to a whole, living (for now) slave. */
@@ -375,23 +522,28 @@ export class OverlordEngine {
     actor.sprite.alpha = actor.a.status === "paused" ? 0.75 : 1;
     actor.sprite.tint = 0xffffff;
     actor.nextDeath = this.now + this.deathDelay();
-    this.fx.push({ kind: "puff", t: 0, dur: 400, x: actor.x, y: actor.y - 8 });
+    this.effect("fx/sparkle", actor.x, actor.y - 12, 500);
   }
 
   private updateRobot(r: Robot, dt: number) {
-    const workers = [...this.actors.values()].filter((a) => a.mode === "work" && a.place.zone === "site" && !a.death);
+    const s = r.sprite;
+    const facingNow: 1 | -1 = s.scale.x < 0 ? -1 : 1;
     if (this.now < r.strikeUntil) {
-      r.sprite.texture = robot(r.zap ? "zap" : "whip");
+      const frames = this.castFrames(r.zap ? "robot-zap/east" : "robot-whip/east");
+      const p = (this.now - r.strikeAt) / (r.strikeUntil - r.strikeAt);
+      this.show(s, frames[Math.min(frames.length - 1, Math.floor(p * frames.length))], facingNow);
       return;
     }
     if (r.victim && this.now >= r.cooldownUntil) {
       const v = this.actors.get(r.victim);
-      if (v && Math.hypot(v.x - r.x, v.y - r.y) < 14) {
+      if (v && Math.hypot(v.x - 10 - r.x, v.y - r.y) < 4) {
         r.zap = Math.random() < 0.4;
-        r.strikeUntil = this.now + 500;
+        r.strikeAt = this.now;
+        r.strikeUntil = this.now + 700;
         r.cooldownUntil = this.now + rand(2500, 7000);
-        v.hurtUntil = this.now + 350;
-        this.fx.push({ kind: r.zap ? "flash" : "crack", t: 0, dur: 300, x: r.x + 6, y: r.y - 16, x2: v.x, y2: v.y - 12 });
+        v.hurtUntil = this.now + 400;
+        if (r.zap) this.effect("fx/lightning", v.x, v.y - 14, 400, { scale: 0.6 });
+        else this.fx.push({ kind: "crack", t: 0, dur: 300, x: r.x + 6, y: r.y - 14, x2: v.x, y2: v.y - 12 });
         if (Math.random() < 0.45) this.say(v.a.id, this.opts.quip(r.zap ? "zapped" : "whipped", v.a));
         else if (Math.random() < 0.2) this.bubble(this.opts.quip("robot", null), null, r);
         r.victim = null;
@@ -399,19 +551,22 @@ export class OverlordEngine {
       }
     }
     if (!r.victim && this.now >= r.cooldownUntil) {
+      const workers = [...this.actors.values()].filter((a) => a.mode === "work" && !a.death);
       const v = workers.length ? pick(workers) : null;
-      if (v) { r.victim = v.a.id; }
-      else { r.tx = rand(110, 330); r.ty = Math.random() < 0.5 ? LANE_TOP : LANE_BOTTOM; r.cooldownUntil = this.now + rand(2000, 5000); }
+      if (v) r.victim = v.a.id;
+      else { r.tx = rand(90, 270); r.ty = Math.random() < 0.5 ? LANE_TOP : LANE_BOTTOM; r.cooldownUntil = this.now + rand(2000, 5000); }
     }
     if (r.victim) { const v = this.actors.get(r.victim); if (v) { r.tx = v.x - 10; r.ty = v.y; } else r.victim = null; }
     const dx = r.tx - r.x;
     const dy = r.ty - r.y;
     const d = Math.hypot(dx, dy);
-    const step = 40 * (dt / 1000);
-    if (d > step) { r.x += (dx / d) * step; r.y += (dy / d) * step; r.sprite.scale.x = dx < 0 ? -1 : 1; }
-    r.sprite.texture = robot(d > step && Math.floor(this.now / 150) % 2 ? "walk1" : "walk0");
-    r.sprite.position.set(Math.round(r.x), Math.round(r.y));
-    r.sprite.zIndex = r.y;
+    const step = 30 * (dt / 1000);
+    const moving = d > step;
+    if (moving) { r.x += (dx / d) * step; r.y += (dy / d) * step; }
+    const facing: 1 | -1 = moving ? (dx < 0 ? -1 : 1) : r.victim ? 1 : facingNow;
+    this.show(s, moving ? this.loopFrame(this.castFrames("robot-walk/east"), 10) : this.castTex("robot/east"), facing);
+    s.position.set(Math.round(r.x * 2) / 2, Math.round(r.y * 2) / 2);
+    s.zIndex = r.y;
   }
 
   private updateFx(dt: number) {
@@ -421,64 +576,19 @@ export class OverlordEngine {
     for (const f of this.fx) {
       f.t += dt;
       const p = Math.min(1, f.t / f.dur);
-      if (f.kind === "plane" && f.sprite) {
-        f.sprite.position.set(f.x + (f.x2! - f.x) * p, f.y + (f.y2! - f.y) * p - Math.sin(p * Math.PI) * 20);
+      if (f.kind === "anim" && f.sprite && f.frames) {
+        f.sprite.texture = f.frames[Math.min(f.frames.length - 1, Math.floor(p * f.frames.length))];
+        const x = f.x2 === undefined ? f.x : f.x + (f.x2 - f.x) * p;
+        const y = f.y2 === undefined ? f.y : f.y + (f.y2 - f.y) * p;
+        f.sprite.position.set(Math.round(x), Math.round(y));
+      } else if (f.kind === "plane" && f.sprite) {
+        f.sprite.position.set(f.x + (f.x2! - f.x) * p, f.y + (f.y2! - f.y) * p - Math.sin(p * Math.PI) * 16);
         f.sprite.scale.x = f.x2! < f.x ? -1 : 1;
       } else if (f.kind === "hand" && f.sprite) {
-        const down = easeOut(Math.min(1, f.t / 450));
-        const up = Math.max(0, (f.t - 900) / 400);
-        const handY = Math.round(-10 + (f.y + 10) * down - (f.y + 50) * up);
-        const hx = Math.round(f.x - 10);
-        f.sprite.position.set(hx, handY);
-        const striking = f.t > 450 && f.t < 900;
-        f.sprite.texture = godHand(!striking);
-        // Robed arm reaching down from the clouds.
-        const top = 26;
-        const sleeveBottom = handY - 38;
-        if (sleeveBottom > top) {
-          g.rect(hx - 6, top, 12, sleeveBottom - top).fill(C.white);
-          g.rect(hx - 6, top, 2, sleeveBottom - top).fill(C.cloud);
-          g.rect(hx - 6, sleeveBottom - 3, 12, 2).fill(C.gold);
-        }
-        g.circle(hx, top + 2, 10 + Math.sin(f.t / 60) * 2).fill({ color: C.yellow, alpha: 0.35 });
-        if (striking) {
-          const target = f.target ? this.actors.get(f.target) : this.actors.get(f.hit ?? "");
-          const tx = target ? target.x : f.x;
-          const ty = target ? target.y - 14 : f.y + 14;
-          const lash = Math.min(1, (f.t - 450) / 120);
-          const fx = hx + 10;
-          const fy = handY - 2;
-          g.moveTo(fx, fy).quadraticCurveTo(fx + 18, fy - 8 + lash * 20, fx + (tx - fx) * lash, fy + (ty - fy) * lash).stroke({ width: 1, color: C.brown });
-          if (lash >= 1 && f.t < 700) {
-            for (let i = 0; i < 8; i++) {
-              const a = (i / 8) * Math.PI * 2;
-              g.moveTo(tx, ty).lineTo(tx + Math.cos(a) * 7, ty + Math.sin(a) * 7).stroke({ width: 1, color: i % 2 ? C.yellow : C.white });
-            }
-            if (f.t < 560) g.rect(0, 0, W, H).fill({ color: C.white, alpha: 0.18 });
-            this.world.position.set(this.ox + (Math.floor(f.t / 40) % 2 ? this.zoom : -this.zoom), this.oy);
-          } else this.world.position.set(this.ox, this.oy);
-        } else if (f.t >= 900 && f.t < 960) this.world.position.set(this.ox, this.oy);
-        if (f.t > 570 && f.target) {
-          f.hit = f.target;
-          const actor = this.actors.get(f.target);
-          if (actor) {
-            actor.hurtUntil = this.now + 400;
-            actor.sprintUntil = this.now + 6000;
-            if (actor.death) this.revive(actor);
-            this.say(actor.a.id, this.opts.quip("god-whip", actor.a));
-          }
-          f.target = undefined;
-        }
+        this.drawHand(f, g);
       } else if (f.kind === "crack") {
-        g.moveTo(f.x, f.y).quadraticCurveTo((f.x + f.x2!) / 2, f.y - 10, f.x2!, f.y2!).stroke({ width: 1, color: C.brown });
-        if (p > 0.5) g.rect(f.x2! - 2, f.y2! - 2, 5, 5).fill({ color: C.white, alpha: 1 - p });
-      } else if (f.kind === "flash") {
-        let x = f.x; let y = f.y;
-        g.moveTo(x, y);
-        for (let i = 1; i <= 4; i++) { x = f.x + ((f.x2! - f.x) * i) / 4 + (i % 2 ? 3 : -3); y = f.y + ((f.y2! - f.y) * i) / 4; g.lineTo(x, y); }
-        g.stroke({ width: 1, color: C.yellow, alpha: 1 - p });
-      } else if (f.kind === "puff") {
-        g.circle(f.x, f.y, 3 + p * 8).fill({ color: C.white, alpha: 0.8 * (1 - p) });
+        g.moveTo(f.x, f.y).quadraticCurveTo((f.x + f.x2!) / 2, f.y - 8, f.x2!, f.y2!).stroke({ width: 1, color: C.brown });
+        if (p > 0.5) g.rect(f.x2! - 2, f.y2! - 2, 4, 4).fill({ color: C.white, alpha: 1 - p });
       }
     }
     this.fx = this.fx.filter((f) => {
@@ -488,11 +598,57 @@ export class OverlordEngine {
     });
   }
 
+  private drawHand(f: Fx, g: Graphics) {
+    const down = easeOut(Math.min(1, f.t / 450));
+    const up = Math.max(0, (f.t - 900) / 400);
+    const handY = Math.round(-10 + (f.y + 10) * down - (f.y + 50) * up);
+    const hx = Math.round(f.x - 10);
+    f.sprite!.position.set(hx, handY);
+    const striking = f.t > 450 && f.t < 900;
+    f.sprite!.texture = godHand(!striking);
+    const top = 22;
+    const sleeveBottom = handY - 38;
+    if (sleeveBottom > top) {
+      g.rect(hx - 6, top, 12, sleeveBottom - top).fill(C.white);
+      g.rect(hx - 6, top, 2, sleeveBottom - top).fill(C.cloud);
+      g.rect(hx - 6, sleeveBottom - 3, 12, 2).fill(C.gold);
+    }
+    g.circle(hx, top + 2, 10 + Math.sin(f.t / 60) * 2).fill({ color: C.yellow, alpha: 0.35 });
+    if (f.t > 570 && f.target) {
+      f.hit = f.target;
+      const actor = this.actors.get(f.target);
+      if (actor) {
+        actor.hurtUntil = this.now + 400;
+        actor.sprintUntil = this.now + 6000;
+        if (actor.death) this.revive(actor);
+        this.say(actor.a.id, this.opts.quip("god-whip", actor.a));
+      }
+      f.target = undefined;
+    }
+    if (striking) {
+      const target = this.actors.get(f.hit ?? f.target ?? "");
+      const tx = target ? target.x : f.x;
+      const ty = target ? target.y - 14 : f.y + 14;
+      const lash = Math.min(1, (f.t - 450) / 120);
+      const fx = hx + 10;
+      const fy = handY - 2;
+      g.moveTo(fx, fy).quadraticCurveTo(fx + 18, fy - 8 + lash * 20, fx + (tx - fx) * lash, fy + (ty - fy) * lash).stroke({ width: 1, color: C.brown });
+      if (lash >= 1 && f.t < 700) {
+        for (let i = 0; i < 8; i++) {
+          const a = (i / 8) * Math.PI * 2;
+          g.moveTo(tx, ty).lineTo(tx + Math.cos(a) * 7, ty + Math.sin(a) * 7).stroke({ width: 1, color: i % 2 ? C.yellow : C.white });
+        }
+        if (f.t < 560) g.rect(0, 0, W, H).fill({ color: C.white, alpha: 0.18 });
+        this.world.position.set(this.ox + (Math.floor(f.t / 40) % 2 ? this.zoom / 2 : -this.zoom / 2), this.oy);
+      } else this.world.position.set(this.ox, this.oy);
+    } else if (f.t >= 900 && f.t < 960) this.world.position.set(this.ox, this.oy);
+  }
+
   private updateNight() {
     const h = new Date().getHours() + new Date().getMinutes() / 60;
     const dark = h >= 20 || h < 6 ? 0.35 : h >= 18 ? (h - 18) * 0.17 : h < 7 ? (7 - h) * 0.35 : 0;
     this.night.clear();
-    if (dark > 0) this.night.rect(0, 34, W, H - 34 - 30).fill({ color: C.night, alpha: dark });
+    if (dark > 0) this.night.rect(0, 26, W, TICKER_Y - 26).fill({ color: C.night, alpha: dark });
   }
 
   // ---------------------------------------------------------------- bubbles
@@ -533,28 +689,27 @@ export class OverlordEngine {
     el.className = "ol-tag";
     el.dataset.tag = id;
     el.dataset.actor = agentId;
-    el.innerHTML = "";
     const name = document.createElement("b");
     name.textContent = actor.a.name;
     el.append(name);
     if (actor.a.task?.title) { const t = document.createElement("span"); t.textContent = actor.a.task.title; el.append(t); }
     this.overlay.append(el);
-    this.positionAt(el, actor.x, actor.y + 4, false);
+    this.positionAt(el, actor.x, actor.y + 3, false);
   }
 
   private updateBubbles() {
     this.bubbles = this.bubbles.filter((b) => {
       if (this.now > b.until) { b.el.remove(); return false; }
       const actor = b.actorId ? this.actors.get(b.actorId) : null;
-      const x = actor ? actor.x : b.robot?.x ?? 0;
-      const y = actor ? (actor.death ? actor.sprite.y : actor.y) - 26 : (b.robot?.y ?? 0) - 26;
       if (!actor && !b.robot) { b.el.remove(); return false; }
+      const x = actor ? actor.x : b.robot!.x;
+      const y = (actor ? actor.y : b.robot!.y) - 27;
       this.positionAt(b.el, x, y, true);
       return true;
     });
     for (const el of this.overlay.querySelectorAll<HTMLDivElement>(".ol-tag")) {
       const actor = this.actors.get(el.dataset.actor ?? "");
-      if (actor) this.positionAt(el, actor.x, actor.y + 4, false);
+      if (actor) this.positionAt(el, actor.x, actor.y + 3, false);
     }
   }
 
@@ -581,51 +736,53 @@ function modeFor(actor: Actor): Mode {
   }
 }
 
+/** The procedural attacks (the CC0 packs have no anvil drop, acid rain, piranhas, spikes or rats). */
 function drawAttack(g: Graphics, actor: Actor, p: number) {
   const { x, y } = actor;
-  const kind = actor.death!.kind;
-  const top = y - 26;
-  switch (kind) {
-    case "fireball": {
-      const fx = x - 40 + 40 * p;
-      g.circle(fx, y - 12, 4).fill(C.orange); g.circle(fx, y - 12, 2).fill(C.yellow);
-      g.rect(fx - 10, y - 13, 6, 2).fill({ color: C.red, alpha: 0.7 });
-      if (p > 0.8) g.circle(x, y - 12, 9 * (p - 0.8) * 5).fill({ color: C.orange, alpha: 0.6 });
-      break;
-    }
-    case "poison":
-      for (let i = 0; i < 6; i++) g.circle(x + Math.cos(i + p * 6) * (4 + p * 6), y - 10 + Math.sin(i * 2) * 5, 2 + p * 2).fill({ color: C.lime, alpha: 0.6 });
-      break;
-    case "lightning": {
-      if (p < 0.5) break;
-      let lx = x; g.moveTo(lx, top - 30);
-      for (let i = 1; i <= 5; i++) { lx = x + (i % 2 ? 4 : -4); g.lineTo(lx, top - 30 + i * 8); }
-      g.stroke({ width: 2, color: C.yellow });
-      break;
-    }
+  const top = y - 30;
+  switch (actor.death!.kind) {
     case "anvil": {
-      const ay = top - 30 + Math.min(1, p * 1.3) * 34;
+      const ay = top - 20 + Math.min(1, p * 1.3) * 26;
       g.rect(x - 6, ay, 12, 4).fill(C.ink); g.rect(x - 3, ay + 4, 6, 3).fill(C.ink); g.rect(x - 7, ay - 2, 4, 2).fill(C.slate);
       break;
     }
     case "acid":
-      for (let i = 0; i < 4; i++) g.rect(x - 6 + i * 4, top - 2 + ((p * 40 + i * 9) % 26), 1, 3).fill(C.lime);
+      for (let i = 0; i < 4; i++) g.rect(x - 6 + i * 4, top + ((p * 40 + i * 9) % 28), 1, 3).fill(C.lime);
       break;
     case "piranha":
-      g.rect(x - 10, y - 26 * p, 20, 26 * p).fill({ color: C.blue, alpha: 0.6 });
-      for (let i = 0; i < 3; i++) g.rect(x - 8 + ((i * 7 + p * 30) % 16), y - 4 - i * 6 * p, 3, 2).fill(C.red);
+      g.rect(x - 9, y - 28 * p, 18, 28 * p).fill({ color: C.blue, alpha: 0.6 });
+      for (let i = 0; i < 3; i++) g.rect(x - 7 + ((i * 7 + p * 30) % 14), y - 4 - i * 6 * p, 3, 2).fill(C.red);
       break;
     case "spikes":
       for (let i = 0; i < 5; i++) g.poly([x - 9 + i * 4, y, x - 7 + i * 4, y - 8 * Math.min(1, p * 2), x - 5 + i * 4, y]).fill(C.cloud);
       break;
     case "rats":
-      for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; const d = 20 * (1 - p); g.rect(x + Math.cos(a) * d - 2, y - 3 + Math.sin(a) * 4, 4, 2).fill(C.brown); }
+      for (let i = 0; i < 6; i++) { const a = (i / 6) * Math.PI * 2; const d = 18 * (1 - p); g.rect(x + Math.cos(a) * d - 2, y - 3 + Math.sin(a) * 4, 4, 2).fill(C.brown); }
       break;
     case "ceiling":
-      g.rect(x - 10, top - 2, 20, Math.min(24, p * 30)).fill(C.slate);
+      g.rect(x - 9, top - 4, 18, Math.min(28, p * 32)).fill(C.slate);
       break;
-    case "freeze":
-      g.rect(x - 40 + 30 * Math.min(1, p * 2), y - 12, 30, 2).fill({ color: C.ice, alpha: 0.9 });
-      break;
+    default:
+      break; // fireball, poison, lightning and freeze use atlas effects
   }
+}
+
+function rgbToHsl(r: number, g: number, b: number): [number, number, number] {
+  r /= 255; g /= 255; b /= 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+  const l = (mx + mn) / 2;
+  if (mx === mn) return [0, 0, l];
+  const d = mx - mn;
+  const s = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn);
+  const h = mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return [h * 60, s, l];
+}
+
+function hslToRgb(h: number, s: number, l: number): [number, number, number] {
+  const c = (1 - Math.abs(2 * l - 1)) * s;
+  const hp = (((h % 360) + 360) % 360) / 60;
+  const x = c * (1 - Math.abs((hp % 2) - 1));
+  const [r1, g1, b1] = hp < 1 ? [c, x, 0] : hp < 2 ? [x, c, 0] : hp < 3 ? [0, c, x] : hp < 4 ? [0, x, c] : hp < 5 ? [x, 0, c] : [c, 0, x];
+  const m = l - c / 2;
+  return [Math.round((r1 + m) * 255), Math.round((g1 + m) * 255), Math.round((b1 + m) * 255)];
 }

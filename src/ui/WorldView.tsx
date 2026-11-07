@@ -37,6 +37,9 @@ export function WorldView({ world, events, mini, onSelect, engineRef, deathEvery
       engine.current = e;
       if (engineRef) engineRef.current = e;
       if (worldRef.current) e.setWorld(worldRef.current);
+    }).catch((err: unknown) => {
+      console.error("[overlord] engine failed to start", err);
+      if (alive && host.current) host.current.dataset.error = err instanceof Error ? err.message : String(err);
     });
     return () => {
       alive = false;

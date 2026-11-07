@@ -1,0 +1,4 @@
+node_modules/
+build/
+# Ninja Adventure ships 96 MB of music and SFX we do not use; keep it local, out of git.
+vendor/ninja-adventure/*/Audio/

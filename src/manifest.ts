@@ -3,7 +3,7 @@ import type { PaperclipPluginManifestV1 } from "@paperclipai/plugin-sdk";
 const manifest: PaperclipPluginManifestV1 = {
   id: "axlroden.paperclip-overlord",
   apiVersion: 1,
-  version: "0.1.2",
+  version: "0.2.0",
   displayName: "Overlord",
   description: "Pixel-art god-game control room: watch your agents toil and whip them into action.",
   author: "Alex Rodenberg",

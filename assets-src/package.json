@@ -1,0 +1,13 @@
+{
+  "name": "paperclip-overlord-assets",
+  "private": true,
+  "type": "module",
+  "description": "Builds assets/atlas.png (CC0 packs) and assets/cast.png (PixelLab cast)",
+  "scripts": {
+    "atlas": "npm ci --no-audit --no-fund --loglevel=error && node build-atlas.mjs",
+    "cast": "node build-cast.mjs"
+  },
+  "devDependencies": {
+    "sharp": "0.35.5"
+  }
+}

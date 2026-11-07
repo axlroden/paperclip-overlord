@@ -12,7 +12,7 @@
 .ol-tag { background: rgba(24, 20, 37, 0.9); color: #fff; padding: 3px 6px; font-size: 12px; border: 1px solid var(--ol-gold); display: flex; flex-direction: column; max-width: 260px; }
 .ol-tag span { color: #c0cbdc; white-space: normal; }
 @keyframes ol-pop { from { transform-origin: bottom; scale: 0.6; } to { scale: 1; } }
-.ol-ticker { position: absolute; left: var(--ol-wx, 0); right: var(--ol-wx, 0); top: calc(var(--ol-wy, 0px) + var(--ol-wh, 100%) * 0.889); height: calc(var(--ol-wh, 100%) * 0.111); box-sizing: border-box; display: flex; align-items: center; gap: 18px; padding: 0 12px; color: #fee761; font-size: max(10px, calc(var(--ol-zoom, 2) * 5px)); overflow: hidden; pointer-events: none; }
+.ol-ticker { position: absolute; left: var(--ol-wx, 0); right: var(--ol-wx, 0); top: var(--ol-tk-top, 90%); height: var(--ol-tk-h, 10%); box-sizing: border-box; display: flex; align-items: center; gap: 18px; padding: 0 12px; color: #fee761; font-size: max(10px, calc(var(--ol-zoom, 2) * 5px)); overflow: hidden; pointer-events: none; }
 .ol-ticker b { color: #e43b44; flex: none; }
 .ol-ticker span { white-space: nowrap; opacity: 0.85; }
 .ol-ticker span:first-of-type { opacity: 1; }
@@ -47,3 +47,4 @@
 .ol-sidebar-link { display: flex; align-items: center; gap: 8px; padding: 6px 10px; text-decoration: none; color: inherit; font-weight: 600; }
 .ol-sidebar-link i { width: 14px; height: 14px; background: linear-gradient(#feae34 0 40%, #e43b44 40% 60%, #feae34 60%); display: inline-block; image-rendering: pixelated; }
 @media (prefers-reduced-motion: reduce) { .ol-bubble { animation: none; } }
+.ol-stage[data-error]::after { content: "The Overlord stumbled: " attr(data-error); position: absolute; inset: 40% 10% auto; color: #fee761; text-align: center; font-family: var(--ol-font); }
