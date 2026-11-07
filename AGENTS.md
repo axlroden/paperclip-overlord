@@ -4,7 +4,7 @@ Paperclip plugin (`axlroden.paperclip-overlord`) that renders a company's agents
 god game: idle agents sit in prison cells (and die cartoon deaths), running agents toil at one of 10
 work sites, the CEO is a frantic air traffic controller, robots whip workers, and board commands
 (reply, review again, approve, answer, wake) bring God's hand down from Heaven.
-Target: Paperclip `2026.1023.0` (the version on tower). Plan: `~/.claude/plans/so-i-want-you-functional-gosling.md`.
+Target: Paperclip `2026.1106.0` (the version on tower; deployed by axlroden/tower `nixos/services/paperclip-overlord.nix`). Plan: `~/.claude/plans/so-i-want-you-functional-gosling.md`.
 
 ## Layout
 
@@ -34,7 +34,7 @@ Local Paperclip E2E: `npx paperclipai@2026.1023.0 onboard -y --no-install-servic
 then `POST /api/plugins/install {"packageName":"<abs path>","isLocalPath":true}` and open
 `/<PREFIX>/overlord`. The server watches `dist/` and reloads after `npm run build`.
 
-## Host contract gotchas (2026.1023.0)
+## Host contract gotchas (2026.1023.0 and 2026.1106.0)
 
 - Plugin SSE streams (`usePluginStream`, `ctx.streams`) answer 501: `server/src/app.ts` never passes a
   `streamBus`. Live updates therefore use the board's own `/api/companies/:id/events/ws` socket.
