@@ -23,6 +23,8 @@ export function Panel({ title, onClose, className, initial, children, footer }: 
     >
       <header
         onPointerDown={(e) => {
+          // Capturing the pointer retargets the click away from the close button, so never drag from a button.
+          if ((e.target as HTMLElement).closest("button")) return;
           const r = (e.currentTarget.parentElement as HTMLElement).getBoundingClientRect();
           drag.current = { dx: e.clientX - r.left, dy: e.clientY - r.top };
           e.currentTarget.setPointerCapture(e.pointerId);
