@@ -379,6 +379,177 @@
         "no_background": false,
         "color_image": "palette.png"
       }
+    },
+    {
+      "id": "bg-sweatshop",
+      "kind": "image",
+      "cost": 1,
+      "note": "backdrop 202x92",
+      "params": {
+        "description": "cramped dim sweatshop room, rows of old sewing machines on wooden tables, piles of fabric and thread spools, a single hanging bulb, peeling brick walls, empty room with no people, full-bleed edge to edge with no black border, floor visible along the bottom third, game background",
+        "image_size": {
+          "width": 202,
+          "height": 92
+        },
+        "view": "low top-down",
+        "outline": "selective outline",
+        "shading": "detailed shading",
+        "detail": "highly detailed",
+        "no_background": false,
+        "color_image": "palette.png"
+      }
+    },
+    {
+      "id": "bg-quarry",
+      "kind": "image",
+      "cost": 1,
+      "note": "backdrop 202x92",
+      "params": {
+        "description": "sunlit open stone quarry pit, cracked grey boulders, rock walls with chisel marks, scattered rubble and a wooden crate, dusty ground, empty room with no people, full-bleed edge to edge with no black border, floor visible along the bottom third, game background",
+        "image_size": {
+          "width": 202,
+          "height": 92
+        },
+        "view": "low top-down",
+        "outline": "selective outline",
+        "shading": "detailed shading",
+        "detail": "highly detailed",
+        "no_background": false,
+        "color_image": "palette.png"
+      }
+    },
+    {
+      "id": "bg-token-refinery",
+      "kind": "image",
+      "cost": 1,
+      "note": "backdrop 272x144",
+      "params": {
+        "description": "eerie industrial refinery hall with a glowing furnace, conveyor chutes, piles of shiny gold coins, purple and orange lighting, pipes and gauges, empty room with no people, full-bleed edge to edge with no black border, floor visible along the bottom third, game background",
+        "image_size": {
+          "width": 272,
+          "height": 144
+        },
+        "view": "low top-down",
+        "outline": "selective outline",
+        "shading": "detailed shading",
+        "detail": "highly detailed",
+        "no_background": false,
+        "color_image": "palette.png"
+      }
+    },
+    {
+      "id": "bg-treadwheel",
+      "kind": "image",
+      "cost": 1,
+      "note": "backdrop 250x88",
+      "params": {
+        "description": "dark server room powered by two giant wooden treadwheels, racks of blinking computer servers, tangled cables on the floor, empty room with no people, full-bleed edge to edge with no black border, floor visible along the bottom third, game background",
+        "image_size": {
+          "width": 250,
+          "height": 88
+        },
+        "view": "low top-down",
+        "outline": "selective outline",
+        "shading": "detailed shading",
+        "detail": "highly detailed",
+        "no_background": false,
+        "color_image": "palette.png"
+      }
+    },
+    {
+      "id": "bg-foundry",
+      "kind": "image",
+      "cost": 1,
+      "note": "backdrop 250x88",
+      "params": {
+        "description": "hot lava foundry with a glowing molten metal channel, iron anvils, crucibles and tongs, brick walls lit orange, empty room with no people, full-bleed edge to edge with no black border, floor visible along the bottom third, game background",
+        "image_size": {
+          "width": 250,
+          "height": 88
+        },
+        "view": "low top-down",
+        "outline": "selective outline",
+        "shading": "detailed shading",
+        "detail": "highly detailed",
+        "no_background": false,
+        "color_image": "palette.png"
+      }
+    },
+    {
+      "id": "bg-sewer",
+      "kind": "image",
+      "cost": 1,
+      "note": "backdrop 250x88",
+      "params": {
+        "description": "toxic sewer tunnel with dripping pipes, a channel of glowing green sludge, slimy stone walls, rusty grates, empty room with no people, full-bleed edge to edge with no black border, floor visible along the bottom third, game background",
+        "image_size": {
+          "width": 250,
+          "height": 88
+        },
+        "view": "low top-down",
+        "outline": "selective outline",
+        "shading": "detailed shading",
+        "detail": "highly detailed",
+        "no_background": false,
+        "color_image": "palette.png"
+      }
+    },
+    {
+      "id": "bg-dispatch",
+      "kind": "image",
+      "cost": 1,
+      "note": "backdrop 140x92",
+      "params": {
+        "description": "cramped dispatch office, a wall of monitors with radar screens, a cluttered desk with phones and stacks of paper, coffee cups, empty room with no people, full-bleed edge to edge with no black border, floor visible along the bottom third, game background",
+        "image_size": {
+          "width": 140,
+          "height": 92
+        },
+        "view": "low top-down",
+        "outline": "selective outline",
+        "shading": "detailed shading",
+        "detail": "highly detailed",
+        "no_background": false,
+        "color_image": "palette.png"
+      }
+    },
+    {
+      "id": "bg-petitions",
+      "kind": "image",
+      "cost": 1,
+      "note": "backdrop 192x144",
+      "params": {
+        "description": "solemn stone temple hall, a red carpet leading up steps to a glowing golden altar, white marble pillars on both sides, candles, empty room with no people, full-bleed edge to edge with no black border, floor visible along the bottom third, game background",
+        "image_size": {
+          "width": 192,
+          "height": 144
+        },
+        "view": "low top-down",
+        "outline": "selective outline",
+        "shading": "detailed shading",
+        "detail": "highly detailed",
+        "no_background": false,
+        "color_image": "palette.png"
+      }
+    },
+    {
+      "id": "bg-prison-cell",
+      "kind": "image",
+      "cost": 1,
+      "note": "backdrop 40x72",
+      "params": {
+        "description": "interior of one tiny prison cell seen from the front, dark stone walls, a straw bed on the floor, a small barred window high up, empty room with no people, full-bleed edge to edge with no black border, floor visible along the bottom third, game background",
+        "image_size": {
+          "width": 40,
+          "height": 72
+        },
+        "view": "low top-down",
+        "outline": "selective outline",
+        "shading": "detailed shading",
+        "detail": "highly detailed",
+        "no_background": false,
+        "color_image": "palette.png"
+      }
     }
   ]
 }

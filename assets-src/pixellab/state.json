@@ -196,5 +196,77 @@
     },
     "done": "2026-11-07T04:18:34.356Z",
     "spent": 1
+  },
+  "bg-sweatshop": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "done": "2026-11-07T04:20:46.916Z",
+    "spent": 1
+  },
+  "bg-quarry": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "done": "2026-11-07T04:21:12.253Z",
+    "spent": 1
+  },
+  "bg-token-refinery": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "done": "2026-11-07T04:21:47.123Z",
+    "spent": 1
+  },
+  "bg-treadwheel": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "done": "2026-11-07T04:22:24.726Z",
+    "spent": 1
+  },
+  "bg-foundry": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "done": "2026-11-07T04:22:47.280Z",
+    "spent": 1
+  },
+  "bg-sewer": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "done": "2026-11-07T04:23:20.480Z",
+    "spent": 1
+  },
+  "bg-dispatch": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "done": "2026-11-07T04:23:38.049Z",
+    "spent": 1
+  },
+  "bg-petitions": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "done": "2026-11-07T04:23:57.380Z",
+    "spent": 1
+  },
+  "bg-prison-cell": {
+    "usage": {
+      "type": "generations",
+      "generations": 1
+    },
+    "done": "2026-11-07T04:24:35.711Z",
+    "spent": 1
   }
 }
