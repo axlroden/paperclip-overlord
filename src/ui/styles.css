@@ -1,6 +1,6 @@
 .ol-root { --ol-ink: #181425; --ol-paper: #ead4aa; --ol-gold: #feae34; --ol-red: #e43b44; --ol-font: "m5x7", "Press Start 2P", ui-monospace, monospace; font-family: var(--ol-font); color: var(--ol-ink); position: relative; }
-.ol-stage { position: relative; width: 100%; aspect-ratio: 16 / 9; max-height: calc(100vh - 140px); background: var(--ol-ink); overflow: hidden; border-radius: 6px; cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='24' shape-rendering='crispEdges'%3E%3Crect x='6' y='0' width='4' height='12' fill='%23ead4aa'/%3E%3Crect x='10' y='6' width='8' height='10' fill='%23ead4aa'/%3E%3Crect x='2' y='10' width='4' height='6' fill='%23ead4aa'/%3E%3Crect x='4' y='14' width='14' height='6' fill='%23e4a672'/%3E%3Crect x='4' y='20' width='14' height='4' fill='%23ffffff'/%3E%3C/svg%3E") 7 0, pointer; }
-.ol-stage.ol-mini { max-height: none; border-radius: 4px; }
+.ol-stage { position: relative; width: 100%; height: calc(100vh - 150px); min-height: 360px; background: var(--ol-ink); overflow: hidden; border-radius: 6px; cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='24' shape-rendering='crispEdges'%3E%3Crect x='6' y='0' width='4' height='12' fill='%23ead4aa'/%3E%3Crect x='10' y='6' width='8' height='10' fill='%23ead4aa'/%3E%3Crect x='2' y='10' width='4' height='6' fill='%23ead4aa'/%3E%3Crect x='4' y='14' width='14' height='6' fill='%23e4a672'/%3E%3Crect x='4' y='20' width='14' height='4' fill='%23ffffff'/%3E%3C/svg%3E") 7 0, pointer; }
+.ol-stage.ol-mini { height: auto; min-height: 0; aspect-ratio: 16 / 9; border-radius: 4px; }
 .ol-stage canvas { display: block; }
 .ol-overlay { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 .ol-bubble, .ol-tag { position: absolute; left: 0; top: 0; white-space: nowrap; font-family: var(--ol-font); line-height: 1.1; }
@@ -12,7 +12,7 @@
 .ol-tag { background: rgba(24, 20, 37, 0.9); color: #fff; padding: 3px 6px; font-size: 12px; border: 1px solid var(--ol-gold); display: flex; flex-direction: column; max-width: 260px; }
 .ol-tag span { color: #c0cbdc; white-space: normal; }
 @keyframes ol-pop { from { transform-origin: bottom; scale: 0.6; } to { scale: 1; } }
-.ol-ticker { position: absolute; left: var(--ol-wx, 0); width: var(--ol-ww, 100%); top: calc(var(--ol-wy, 0px) + var(--ol-wh, 100%) * 0.889); height: calc(var(--ol-wh, 100%) * 0.111); box-sizing: border-box; display: flex; align-items: center; gap: 18px; padding: 0 12px; color: #fee761; font-size: max(10px, calc(var(--ol-zoom, 2) * 5px)); overflow: hidden; pointer-events: none; }
+.ol-ticker { position: absolute; left: var(--ol-wx, 0); right: var(--ol-wx, 0); top: calc(var(--ol-wy, 0px) + var(--ol-wh, 100%) * 0.889); height: calc(var(--ol-wh, 100%) * 0.111); box-sizing: border-box; display: flex; align-items: center; gap: 18px; padding: 0 12px; color: #fee761; font-size: max(10px, calc(var(--ol-zoom, 2) * 5px)); overflow: hidden; pointer-events: none; }
 .ol-ticker b { color: #e43b44; flex: none; }
 .ol-ticker span { white-space: nowrap; opacity: 0.85; }
 .ol-ticker span:first-of-type { opacity: 1; }

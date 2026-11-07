@@ -6,7 +6,7 @@ import {
 import { C, character, ghost, godHand, lookFor, plane, remains, robot, tomb, type Look, type Pose } from "./pixels.js";
 import {
   ALTAR, ATC, ATC_DESK, background, cellBars, cellFeet, GRAVE, H, LANE_BOTTOM, LANE_TOP, PRISON,
-  SITE_BOXES, slotIn, STOCKS, W, WAGON,
+  SITE_BOXES, slotIn, STOCKS, TICKER_Y, W, WAGON,
 } from "./scene.js";
 
 export type QuipFn = (tag: string, agent: WorldAgent | null) => string | null;
@@ -61,6 +61,7 @@ export class OverlordEngine {
   private fxLayer = new Container();
   private fxG = new Graphics();
   private night = new Graphics();
+  private backdrop = new Graphics(); // screen space: sky, grass and ticker bar continue past the world edges
   private overlay: HTMLDivElement;
   private actors = new Map<string, Actor>();
   private robots: Robot[] = [];
@@ -84,7 +85,10 @@ export class OverlordEngine {
 
   static async create(host: HTMLElement, opts: EngineOptions): Promise<OverlordEngine> {
     const e = new OverlordEngine(host, opts);
-    await e.app.init({ backgroundAlpha: 0, antialias: false, roundPixels: true, resolution: 1, resizeTo: host, preference: "webgl" });
+    // Device-pixel resolution: zoom then snaps to whole DEVICE pixels (2x, 3x on a 2x screen = 1, 1.5 CSS),
+    // which stays pixel-perfect while using far more of the frame than whole CSS-pixel steps.
+    // shortcut: resolution is fixed at mount; moving the tab to a screen with another DPR needs a remount.
+    await e.app.init({ backgroundAlpha: 0, antialias: false, roundPixels: true, resolution: window.devicePixelRatio || 1, autoDensity: true, resizeTo: host, preference: "webgl" });
     if (e.destroyed) { e.app.destroy(true); return e; }
     e.app.canvas.style.imageRendering = "pixelated";
     host.append(e.app.canvas, e.overlay);
@@ -109,7 +113,7 @@ export class OverlordEngine {
   }
 
   private build() {
-    this.app.stage.addChild(this.world);
+    this.app.stage.addChild(this.backdrop, this.world);
     this.world.addChild(new Sprite(background()));
     this.actorsLayer.sortableChildren = true;
     this.world.addChild(this.actorsLayer);
@@ -121,20 +125,28 @@ export class OverlordEngine {
   }
 
   private fit() {
+    const dpr = this.app.renderer.resolution;
     const w = this.host.clientWidth || W;
     const h = this.host.clientHeight || H;
-    const s = Math.min(w / W, h / H);
-    this.zoom = s >= 1 ? Math.floor(s) : s;
-    this.ox = Math.floor((w - W * this.zoom) / 2);
-    this.oy = Math.floor((h - H * this.zoom) / 2);
+    const s = Math.min((w * dpr) / W, (h * dpr) / H);
+    this.zoom = (s >= 1 ? Math.floor(s) : s) / dpr;
+    const snap = (v: number) => Math.round(v * dpr) / dpr;
+    this.ox = snap((w - W * this.zoom) / 2);
+    this.oy = snap((h - H * this.zoom) / 2);
     this.world.scale.set(this.zoom);
     this.world.position.set(this.ox, this.oy);
-    this.overlay.style.setProperty("--ol-zoom", String(this.zoom));
-    // HTML chrome (ticker, HUD) hugs the drawn world rather than the letterboxed stage.
-    for (const [k, v] of [["--ol-wx", this.ox], ["--ol-wy", this.oy], ["--ol-ww", W * this.zoom], ["--ol-wh", H * this.zoom]] as const) {
+    const z = this.zoom;
+    this.backdrop.clear()
+      .rect(0, 0, w, this.oy + 24 * z).fill(C.sky)
+      .rect(0, this.oy + 24 * z, w, 10 * z).fill(C.cloud)
+      .rect(0, this.oy + 34 * z, w, h).fill(C.moss)
+      .rect(0, this.oy + TICKER_Y * z, w, (H - TICKER_Y) * z).fill(C.ink);
+    this.overlay.style.setProperty("--ol-zoom", String(z));
+    // HTML chrome (ticker, HUD) hugs the drawn world rather than the stage.
+    for (const [k, v] of [["--ol-wx", this.ox], ["--ol-wy", this.oy], ["--ol-ww", W * z], ["--ol-wh", H * z]] as const) {
       this.host.style.setProperty(k, `${v}px`);
     }
-    this.host.style.setProperty("--ol-zoom", String(this.zoom));
+    this.host.style.setProperty("--ol-zoom", String(z));
   }
 
   // ---------------------------------------------------------------- state
