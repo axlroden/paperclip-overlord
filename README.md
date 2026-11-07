@@ -10,3 +10,8 @@ cartoon slaves, you are God, and the CEO agent runs dispatch from a tiny tower o
 - A live mini view sits on the Paperclip Dashboard; the full view lives at `/<company>/overlord`.
 
 See [AGENTS.md](AGENTS.md) for development, testing and host-contract notes.
+
+## License
+
+MIT, see [LICENSE](LICENSE). Third-party art and fonts keep their own licenses (CC0 packs and the
+OFL font), listed in `assets/ASSETS.md`.
