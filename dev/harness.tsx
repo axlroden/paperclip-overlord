@@ -48,6 +48,6 @@ const fast: [number, number] | undefined = params.has("fast") ? [3000, 9000] : u
 
 createRoot(document.getElementById("root")!).render(
   params.has("widget")
-    ? <div style={{ width: 520 }}><OverlordWidget context={{ companyId: sim.companyId, companyPrefix: "SIM", projectId: null, entityId: null, entityType: null, userId: "god" }} /></div>
+    ? <div style={{ width: 520 }}><OverlordWidget context={{ companyId: sim.companyId, companyPrefix: null /* as the real Dashboard */, projectId: null, entityId: null, entityType: null, userId: "god" }} /></div>
     : <OverlordWorld companyId={sim.companyId} userId="god" deathEveryMs={fast} siteOverrides={sim.overrides} />,
 );

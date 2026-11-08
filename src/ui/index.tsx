@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useHostNavigation, usePluginAction, usePluginData, type PluginPageProps, type PluginSidebarProps, type PluginWidgetProps } from "@paperclipai/plugin-sdk/ui";
+import { useHostLocation, useHostNavigation, usePluginAction, usePluginData, type PluginPageProps, type PluginSidebarProps, type PluginWidgetProps } from "@paperclipai/plugin-sdk/ui";
 import { findBossId, SITES, siteFor, type SiteId, type WorldEvent, type WorldSnapshot } from "../shared/world.js";
 import type { OverlordEngine } from "./game/engine.js";
 import { AgentPopout } from "./overlays/AgentPopout.js";
@@ -126,9 +126,13 @@ function Ticker({ world, events, children }: { world: WorldSnapshot | null; even
 export function OverlordWidget({ context }: PluginWidgetProps) {
   useStyles();
   const nav = useHostNavigation();
+  const { pathname } = useHostLocation();
   if (!context.companyId) return null;
+  // The Dashboard (2026.1106.0) renders widgets with only {companyId}, so the host can't prefix the
+  // link itself; the dashboard URL already starts with the company prefix.
+  const prefix = context.companyPrefix ?? pathname.split("/")[1];
   return (
-    <div className="ol-root" onClick={() => nav.navigate(nav.resolveHref("/overlord"))} title="Open the Overlord view">
+    <div className="ol-root" onClick={() => nav.navigate(`/${prefix}/overlord`)} title="Open the Overlord view">
       <MiniWorld companyId={context.companyId} />
     </div>
   );
