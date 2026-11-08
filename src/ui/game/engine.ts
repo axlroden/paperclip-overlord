@@ -8,6 +8,7 @@ import {
   type DeathId, type Place, type SiteId, type WorldAgent, type WorldEvent, type WorldSnapshot,
 } from "../../shared/world.js";
 import { C, godHand, plane } from "./pixels.js";
+import { siteAmbient, siteToWorld, STATIONS, type Slot } from "./stations.js";
 import {
   ALTAR, ATC, ATC_DESK, buildScenery, cellFeet, CONDUITS, GOD, H, LANE_BOTTOM, LANE_TOP, SITE_BOXES, slotIn,
   TICKER_Y, W, type AnimatedProp, type Conduit,
@@ -97,7 +98,12 @@ interface Actor {
   hurtUntil: number;
   nextDeath: number;
   death: Death | null;
+  slot: Slot | null;
+  lastFrame: number;
 }
+
+/** Debris thrown by a strike; with `to` it flies in an arc and is delivered there. */
+interface Particle { x: number; y: number; vx: number; vy: number; t: number; life: number; color: number; size: number; from?: [number, number]; to?: [number, number]; site?: SiteId }
 
 interface Bubble { el: HTMLDivElement; until: number; actorId: string | null; robot: Robot | null }
 interface Robot { sprite: Sprite; x: number; y: number; tx: number; ty: number; victim: string | null; strikeAt: number; strikeUntil: number; cooldownUntil: number; zap: boolean }
@@ -113,6 +119,9 @@ export class OverlordEngine {
   private backdrop = new Graphics(); // screen space: the machine's darkness and the ticker strip continue past the world edges
   private flowG = new Graphics(); // packets running through the conduits, under the rooms
   private godGlow = new Graphics(); // the Machine God pulses with the work it is fed
+  private siteG = new Graphics(); // each room's machinery: wheels, lava, sludge, conveyor, fire
+  private particles: Particle[] = [];
+  private stock: Partial<Record<SiteId, number>> = {}; // delivered output: coal in the cart, steel on the rack
   private conduits: { c: Conduit; len: number }[] = CONDUITS.map((c) => ({ c, len: polyLength(c.points) }));
   private overlay: HTMLDivElement;
   private art!: Sheets;
@@ -177,7 +186,7 @@ export class OverlordEngine {
     this.godGlow.blendMode = "add";
     this.app.stage.addChild(this.backdrop, this.world);
     this.actorsLayer.sortableChildren = true;
-    this.world.addChild(scenery.background, this.godGlow, this.actorsLayer, scenery.foreground, this.fxLayer, this.fxG, this.night);
+    this.world.addChild(scenery.background, this.siteG, this.godGlow, this.actorsLayer, scenery.foreground, this.fxLayer, this.fxG, this.night);
   }
 
   private fit() {
@@ -280,7 +289,13 @@ export class OverlordEngine {
       actor.a = a;
       const place = placeOf(a, { bossId: this.bossId, petitionAgentIds: petitionAgents, overrides: this.opts.overrides });
       const cellIndex = a.id === this.bossId || a.status === "terminated" ? -1 : cell++;
-      const target = this.targetFor(place, cellIndex, slot);
+      actor.slot = null;
+      if (place.zone === "site") {
+        const i = slot(`site:${place.site}`);
+        actor.slot = STATIONS[place.site].slots[i] ?? null;
+        counters.set(`site:${place.site}`, i); // targetFor takes the same index
+      }
+      const target = this.targetFor(place, cellIndex, slot, actor.slot);
       const moved = place.zone !== actor.place.zone || (place.zone === "site" && actor.place.zone === "site" && place.site !== actor.place.site);
       actor.place = place;
       if (moved && actor.death) this.revive(actor);
@@ -346,13 +361,18 @@ export class OverlordEngine {
     const actor: Actor = {
       a, rags: RAGS[h % RAGS.length], phase: h % 1000, sprite, x: ALTAR.x + 20, y: ALTAR.y + ALTAR.h - 4,
       path: [], place: { zone: "altar" }, mode: "idle", facing: 1,
-      sprintUntil: 0, hurtUntil: 0, nextDeath: this.now + this.deathDelay(), death: null,
+      sprintUntil: 0, hurtUntil: 0, nextDeath: this.now + this.deathDelay(), death: null, slot: null, lastFrame: -1,
     };
     this.actors.set(a.id, actor);
     return actor;
   }
 
-  private targetFor(place: Place, cellIndex: number, slot: (key: string) => number): { x: number; y: number } {
+  private targetFor(place: Place, cellIndex: number, slot: (key: string) => number, station: Slot | null): { x: number; y: number } {
+    if (place.zone === "site" && station) {
+      slot(`site:${place.site}`);
+      const [x, y] = siteToWorld(place.site, station.x, station.y);
+      return { x, y };
+    }
     switch (place.zone) {
       case "atc": return { ...ATC_DESK };
       case "cell": return cellFeet(Math.max(0, cellIndex));
@@ -418,6 +438,7 @@ export class OverlordEngine {
     for (const actor of this.actors.values()) this.updateActor(actor, dt);
     for (const r of this.robots) this.updateRobot(r, dt);
     this.updateFx(dt);
+    this.updateParticles(dt);
     this.updateMachine();
     this.updateBubbles();
     this.chatter();
@@ -439,7 +460,7 @@ export class OverlordEngine {
       if (Math.abs(dx) > 0.5) actor.facing = dx < 0 ? -1 : 1;
     } else {
       actor.mode = modeFor(actor);
-      if (actor.mode === "work") actor.facing = 1;
+      if (actor.mode === "work") actor.facing = actor.slot?.facing ?? 1;
     }
 
     const s = actor.sprite;
@@ -447,7 +468,16 @@ export class OverlordEngine {
     const scale = SPRITE_SCALE;
     switch (actor.mode) {
       case "walk": t = this.loopFrame(this.castFrames(sprint ? "run/east" : "walk/east"), sprint ? 14 : 10, actor.phase); break;
-      case "work": t = this.loopFrame(this.castFrames(WORK_ANIM[(actor.place as { site: SiteId }).site]), sprint ? 16 : 10, actor.phase); break;
+      case "work": {
+        const site = (actor.place as { site: SiteId }).site;
+        const frames = this.castFrames(WORK_ANIM[site]);
+        const fps = sprint ? 16 : 10;
+        const i = Math.floor((this.now + actor.phase) / (1000 / fps)) % frames.length;
+        if (i === STATIONS[site].impact && actor.lastFrame !== i) this.strike(site, actor);
+        actor.lastFrame = i;
+        t = frames[i];
+        break;
+      }
       case "kneel": t = this.loopFrame(this.castFrames("kneel/east").slice(-4), 5, actor.phase); break;
       case "atc": t = actor.a.status === "running" ? this.loopFrame(this.castFrames("atc-frantic/east"), 12, actor.phase) : this.castTex("atc/south"); break;
       case "idle": t = this.loopFrame(this.castFrames("idle-cell/east"), 4, actor.phase); break;
@@ -649,6 +679,70 @@ export class OverlordEngine {
     } else if (f.t >= 900 && f.t < 960) this.world.position.set(this.ox, this.oy);
   }
 
+  /** A tool connects: throw debris at the tool point, and deliver output to the room's sink. */
+  private strike(site: SiteId, actor: Actor) {
+    if (this.opts.mini) return;
+    const st = STATIONS[site];
+    const slot = actor.slot ?? st.slots[0];
+    const [tx, ty] = siteToWorld(site, slot.x + slot.tool[0], slot.y - slot.tool[1]);
+    const burst = (n: number, color: number, speed: number, up: number, life = 600, size = 1) => {
+      for (let i = 0; i < n; i++) this.particles.push({ x: tx, y: ty, vx: (Math.random() - 0.5) * speed, vy: -Math.random() * up, t: 0, life, color, size });
+    };
+    const deliver = (color: number, size: number) => {
+      if (!st.sink) return;
+      const to = siteToWorld(site, st.sink[0], st.sink[1]);
+      this.particles.push({ x: tx, y: ty, vx: 0, vy: 0, t: 0, life: 650, color, size, from: [tx, ty], to, site });
+    };
+    switch (st.strike) {
+      case "chips": burst(6, 0xc0cbdc, 40, 45); burst(3, 0x8b9bb4, 30, 30, 800, 1.5); break;
+      case "coal": burst(4, 0x5a6988, 30, 30); deliver(0x181425, 1.5); break;
+      case "sparks": burst(8, 0xfee761, 60, 50, 450, 0.5); burst(4, 0xf77622, 50, 40, 500, 0.5); if (Math.random() < 0.34) deliver(0x8b9bb4, 2); break;
+      case "splash": burst(7, 0x63c74d, 30, 50); burst(3, 0xb8ff90, 20, 40, 700, 0.5); break;
+      case "tokens": burst(3, 0xfee761, 20, 20, 400, 0.5); deliver(0xfeae34, 1.5); deliver(0xfeae34, 1.5); break;
+      case "fabric": burst(3, 0xe43b44, 20, 15, 900, 1); burst(2, 0xfeae34, 15, 10, 900, 0.5); break;
+      case "power": burst(4, 0x2ce8f5, 25, 35, 400, 0.5); break;
+    }
+  }
+
+  private updateParticles(dt: number) {
+    const g = this.fxG;
+    const s = dt / 1000;
+    this.particles = this.particles.filter((p) => {
+      p.t += dt;
+      if (p.t >= p.life) {
+        if (p.to && p.site) this.stock[p.site] = Math.min(12, (this.stock[p.site] ?? 0) + 1);
+        return false;
+      }
+      if (p.from && p.to) {
+        const k = p.t / p.life;
+        p.x = p.from[0] + (p.to[0] - p.from[0]) * k;
+        p.y = p.from[1] + (p.to[1] - p.from[1]) * k - Math.sin(k * Math.PI) * 10;
+      } else {
+        p.vy += 140 * s;
+        p.x += p.vx * s;
+        p.y += p.vy * s;
+      }
+      const x = Math.round(p.x * 2) / 2;
+      const y = Math.round(p.y * 2) / 2;
+      g.rect(x, y, p.size, p.size).fill({ color: p.color, alpha: p.from ? 1 : 1 - p.t / p.life });
+      return true;
+    });
+  }
+
+  /** Delivered output piles up (coal heap, steel rack, furnace flare) and slowly gets used. */
+  private drawStock(g: Graphics) {
+    for (const site of Object.keys(this.stock) as SiteId[]) {
+      const n = this.stock[site] ?? 0;
+      if (n <= 0) continue;
+      const sink = STATIONS[site].sink!;
+      const [x, y] = siteToWorld(site, sink[0], sink[1]);
+      if (site === "coal-mine") for (let i = 0; i < n; i++) g.rect(x - 6 + (i % 6) * 2, y - 1 - Math.floor(i / 6) * 1.5, 2, 1.5).fill(i % 3 ? 0x181425 : 0x3a4466);
+      if (site === "foundry") for (let i = 0; i < n; i++) g.rect(x - 5 + (i % 4) * 2.5, y - 1 - Math.floor(i / 4) * 1, 2, 0.5).fill(i % 2 ? 0xc0cbdc : 0x8b9bb4);
+      if (site === "token-refinery") g.circle(x, y, 4 + n * 0.6).fill({ color: 0xfeae34, alpha: 0.12 });
+      this.stock[site] = n - 0.0008 * 16; // the machine consumes it
+    }
+  }
+
   /** Packets flow down every conduit whose station is busy; the god glows with the total. */
   private updateMachine() {
     const actors = [...this.actors.values()];
@@ -660,6 +754,10 @@ export class OverlordEngine {
         default: return actors.filter((a) => a.mode === "work" && (a.place as { site?: SiteId }).site === from).length;
       }
     };
+    const sg = this.siteG;
+    sg.clear();
+    for (const site of Object.keys(STATIONS) as SiteId[]) siteAmbient(sg, site, this.now, busy(site));
+    this.drawStock(sg);
     const g = this.flowG;
     g.clear();
     let total = 0;
