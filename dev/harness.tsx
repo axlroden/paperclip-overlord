@@ -6,7 +6,7 @@ import { Simulator } from "./simulator.js";
 
 const params = new URLSearchParams(location.search);
 (globalThis as Record<string, unknown>).__OVERLORD_DEBUG__ = true;
-const sim = new Simulator(params.has("fast") ? 3 : 1);
+const sim = new Simulator(params.has("fast") ? 3 : 1, params.has("full"));
 const log = (...a: unknown[]) => console.debug("[harness]", ...a);
 
 function usePluginData(key: string, p?: Record<string, unknown>) {
@@ -49,5 +49,5 @@ const fast: [number, number] | undefined = params.has("fast") ? [3000, 9000] : u
 createRoot(document.getElementById("root")!).render(
   params.has("widget")
     ? <div style={{ width: 520 }}><OverlordWidget context={{ companyId: sim.companyId, companyPrefix: "SIM", projectId: null, entityId: null, entityType: null, userId: "god" }} /></div>
-    : <OverlordWorld companyId={sim.companyId} userId="god" deathEveryMs={fast} />,
+    : <OverlordWorld companyId={sim.companyId} userId="god" deathEveryMs={fast} siteOverrides={sim.overrides} />,
 );

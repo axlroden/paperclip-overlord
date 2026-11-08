@@ -186,6 +186,7 @@ export class OverlordEngine {
     this.godGlow.blendMode = "add";
     this.app.stage.addChild(this.backdrop, this.world);
     this.actorsLayer.sortableChildren = true;
+    this.actorsLayer.addChild(...scenery.bars);
     this.world.addChild(scenery.background, this.siteG, this.godGlow, this.actorsLayer, scenery.foreground, this.fxLayer, this.fxG, this.night);
   }
 
@@ -420,7 +421,7 @@ export class OverlordEngine {
 
   private syncRobots() {
     const running = [...this.actors.values()].filter((a) => a.place.zone === "site").length;
-    const want = Math.max(1, Math.min(8, Math.ceil(running / 2)));
+    const want = Math.max(1, Math.min(4, Math.ceil(running / 4)));
     while (this.robots.length < want) {
       const sprite = new Sprite(this.castTex("robot/east"));
       this.actorsLayer.addChild(sprite);
@@ -460,7 +461,7 @@ export class OverlordEngine {
       if (Math.abs(dx) > 0.5) actor.facing = dx < 0 ? -1 : 1;
     } else {
       actor.mode = modeFor(actor);
-      if (actor.mode === "work") actor.facing = actor.slot?.facing ?? 1;
+      actor.facing = actor.mode === "work" ? actor.slot?.facing ?? 1 : 1;
     }
 
     const s = actor.sprite;
@@ -480,7 +481,7 @@ export class OverlordEngine {
       }
       case "kneel": t = this.loopFrame(this.castFrames("kneel/east").slice(-4), 5, actor.phase); break;
       case "atc": t = actor.a.status === "running" ? this.loopFrame(this.castFrames("atc-frantic/east"), 12, actor.phase) : this.castTex("atc/south"); break;
-      case "idle": t = this.loopFrame(this.castFrames("idle-cell/east"), 4, actor.phase); break;
+      case "idle": t = this.castTex("worker/south"); break; // standing still in the cell, facing out
       default: t = this.castTex("worker/south");
     }
     if (actor.a.id !== this.bossId) t = this.dyed(t, actor.rags);
@@ -582,7 +583,11 @@ export class OverlordEngine {
       }
     }
     if (!r.victim && this.now >= r.cooldownUntil) {
-      const workers = [...this.actors.values()].filter((a) => a.mode === "work" && !a.death);
+      // spread out: prefer a worker no other robot is already after
+      const taken = new Set(this.robots.map((o) => o.victim).filter(Boolean));
+      const all = [...this.actors.values()].filter((a) => a.mode === "work" && !a.death);
+      const free = all.filter((a) => !taken.has(a.a.id));
+      const workers = free.length ? free : all;
       const v = workers.length ? pick(workers) : null;
       if (v) r.victim = v.a.id;
       else { r.tx = rand(10, 370); r.ty = Math.random() < 0.5 ? LANE_TOP : LANE_BOTTOM; r.cooldownUntil = this.now + rand(2000, 5000); }

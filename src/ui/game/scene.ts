@@ -96,7 +96,7 @@ type R = (x: number, y: number, w: number, h: number, c: string) => void;
 /** Animated props the engine keeps ticking. */
 export interface AnimatedProp { sprite: Sprite; frames: Texture[]; fps: number }
 
-export interface Scenery { background: Container; foreground: Container; props: AnimatedProp[] }
+export interface Scenery { background: Container; foreground: Container; props: AnimatedProp[]; bars: Sprite[] }
 
 /** Ink frame plus a label plate in the top-left corner, the same for every room. */
 function frame(r: R, b: Box, label: string) {
@@ -143,6 +143,7 @@ function paintMachine(r: R) {
 export function buildScenery(cast: Spritesheet): Scenery {
   const background = new Container();
   const foreground = new Container();
+  const bars: Sprite[] = [];
   const coarse = (key: string, b: Box, fn: (r: R) => void) => {
     const s = new Sprite(tex(`scene:${key}`, b.w, b.h, (r) => fn((x, y, w, h, c) => r(x - b.x, y - b.y, w, h, c))));
     s.position.set(b.x, b.y);
@@ -168,16 +169,20 @@ export function buildScenery(cast: Spritesheet): Scenery {
   for (let row = 0; row < CELL_ROWS; row++) for (let col = 0; col < CELLS_PER_ROW; col++) {
     backdrop("prison-cell", { x: PRISON.x + 2 + col * CELL_W, y: PRISON.y + row * CELL_H, w: CELL_W, h: CELL_H });
   }
-  const bars = new Sprite(tex("scene:bars", PRISON.w, PRISON.h, (r) => {
-    for (let row = 0; row < CELL_ROWS; row++) for (let col = 0; col < CELLS_PER_ROW; col++) {
-      const cx = 2 + col * CELL_W;
-      const cy = row * CELL_H + 2;
-      for (const b of [2, CELL_W - 3]) { r(cx + b, cy, 1, CELL_H - 4, C.fog); r(cx + b, cy, 1, 1, C.white); } // wide gap: prisoners stay visible
-      r(cx + 1, cy, CELL_W - 2, 1, C.steel);
-    }
-  }));
-  bars.position.set(PRISON.x, PRISON.y);
-  foreground.addChild(bars);
+  // one bar sprite per cell row, depth-sorted with the actors: prisoners (feet inside the row) stay
+  // behind their bars, anyone walking past on the lane below is in front of them
+  for (let row = 0; row < CELL_ROWS; row++) {
+    const rowBars = new Sprite(tex("scene:bars-row", PRISON.w, CELL_H, (r) => {
+      for (let col = 0; col < CELLS_PER_ROW; col++) {
+        const cx = 2 + col * CELL_W;
+        for (const b of [2, CELL_W - 3]) { r(cx + b, 2, 1, CELL_H - 4, C.fog); r(cx + b, 2, 1, 1, C.white); } // wide gap: prisoners stay visible
+        r(cx + 1, 2, CELL_W - 2, 1, C.steel);
+      }
+    }));
+    rowBars.position.set(PRISON.x, PRISON.y + row * CELL_H);
+    rowBars.zIndex = PRISON.y + row * CELL_H + CELL_H - 1; // just in front of the row's feet
+    bars.push(rowBars);
+  }
 
   backdrop("petitions", ALTAR);
   coarse("altar-frame", ALTAR, (r) => frame(r, ALTAR, "PETITIONS"));
@@ -188,5 +193,5 @@ export function buildScenery(cast: Spritesheet): Scenery {
     coarse(`site-frame-${s.id}`, b, (r) => frame(r, b, s.name.toUpperCase()));
   }
   coarse("ticker", { x: 0, y: TICKER_Y, w: W, h: H - TICKER_Y }, (r) => r(0, TICKER_Y, W, H - TICKER_Y, C.ink));
-  return { background, foreground, props: [] };
+  return { background, foreground, props: [], bars };
 }

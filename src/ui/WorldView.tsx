@@ -1,5 +1,5 @@
 import { useEffect, useRef, type MutableRefObject } from "react";
-import { findBossId, type WorldSnapshot } from "../shared/world.js";
+import { findBossId, type SiteId, type WorldSnapshot } from "../shared/world.js";
 import { OverlordEngine } from "./game/engine.js";
 import { makeQuip } from "./quips.js";
 import type { Seq } from "./useLiveEvents.js";
@@ -13,10 +13,11 @@ export interface WorldViewProps {
   onSelect?: (agentId: string) => void;
   engineRef?: MutableRefObject<OverlordEngine | null>;
   deathEveryMs?: [number, number];
+  overrides?: Record<string, SiteId>;
   children?: React.ReactNode;
 }
 
-export function WorldView({ world, events, mini, onSelect, engineRef, deathEveryMs, children }: WorldViewProps) {
+export function WorldView({ world, events, mini, onSelect, engineRef, deathEveryMs, overrides, children }: WorldViewProps) {
   useStyles();
   const host = useRef<HTMLDivElement>(null);
   const engine = useRef<OverlordEngine | null>(null);
@@ -32,7 +33,7 @@ export function WorldView({ world, events, mini, onSelect, engineRef, deathEvery
       const id = w && findBossId(w.agents);
       return w?.agents.find((a) => a.id === id)?.name ?? null;
     });
-    void OverlordEngine.create(host.current!, { mini, quip, deathEveryMs, onSelect: (id) => selectRef.current?.(id) }).then((e) => {
+    void OverlordEngine.create(host.current!, { mini, quip, deathEveryMs, overrides, onSelect: (id) => selectRef.current?.(id) }).then((e) => {
       if (!alive) { e.destroy(); return; }
       engine.current = e;
       if (engineRef) engineRef.current = e;

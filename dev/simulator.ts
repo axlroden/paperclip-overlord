@@ -1,5 +1,6 @@
 // Fake Paperclip company for the dev harness: agents start and finish runs, fail, ask questions.
-import type { AgentStatus, Petition, WorldAgent, WorldEvent, WorldSnapshot } from "../src/shared/world.js";
+import type { AgentStatus, Petition, SiteId, WorldAgent, WorldEvent, WorldSnapshot } from "../src/shared/world.js";
+import { STATIONS } from "../src/ui/game/stations.js";
 
 const NAMES: [string, string][] = [
   ["Boss Bossington", "ceo"], ["Grumbles", "engineer"], ["Patch", "engineer"], ["Sir Reviewsalot", "qa"],
@@ -23,7 +24,26 @@ export class Simulator {
   private listeners = new Set<Listener>();
   private n = 0;
 
-  constructor(private speed = 1) {
+  /** Agent id -> site, so the harness can pin workers to rooms (full-house mode). */
+  readonly overrides: Record<string, SiteId> = {};
+
+  constructor(private speed = 1, private full = false) {
+    if (full) {
+      // full house: one worker per station slot in every room, plus prisoners and petitioners
+      this.agents = [{ id: "agent-0", name: "Boss Bossington", role: "ceo", title: "Chief Dispatcher", status: "running", reportsTo: null, task: null, runId: null, overBudget: false }];
+      let n = 1;
+      for (const [site, st] of Object.entries(STATIONS) as [SiteId, (typeof STATIONS)[SiteId]][]) {
+        for (let i = 0; i < st.slots.length; i++, n++) {
+          const a: WorldAgent = { id: `agent-${n}`, name: `${NAMES[n % NAMES.length][0]} ${n}`, role: "engineer", title: null, status: "idle", reportsTo: "agent-0", task: null, runId: null, overBudget: false };
+          this.agents.push(a);
+          this.overrides[a.id] = site;
+          this.start(a, false);
+        }
+      }
+      for (let i = 0; i < 6; i++, n++) this.agents.push({ id: `agent-${n}`, name: `Prisoner ${n}`, role: "general", title: null, status: i === 0 ? "error" : "idle", reportsTo: "agent-0", task: null, runId: null, overBudget: false });
+      this.agents.push({ id: "agent-new", name: "Fresh Recruit", role: "general", title: null, status: "pending_approval", reportsTo: "agent-0", task: null, runId: null, overBudget: false });
+      return; // nobody clocks off in full-house mode
+    }
     this.agents = NAMES.map(([name, role], i) => ({
       id: `agent-${i}`, name, role, title: role === "ceo" ? "Chief Dispatcher" : null,
       status: (i === 14 ? "paused" : i === 15 ? "terminated" : i === 13 ? "error" : "idle") as AgentStatus,

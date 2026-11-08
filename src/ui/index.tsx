@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useHostNavigation, usePluginAction, type PluginPageProps, type PluginSidebarProps, type PluginWidgetProps } from "@paperclipai/plugin-sdk/ui";
-import { findBossId, SITES, siteFor, type WorldEvent, type WorldSnapshot } from "../shared/world.js";
+import { findBossId, SITES, siteFor, type SiteId, type WorldEvent, type WorldSnapshot } from "../shared/world.js";
 import type { OverlordEngine } from "./game/engine.js";
 import { AgentPopout } from "./overlays/AgentPopout.js";
 import { PetitionModal } from "./overlays/PetitionModal.js";
@@ -15,7 +15,13 @@ export function OverlordPage({ context }: PluginPageProps) {
   return <OverlordWorld companyId={context.companyId} userId={context.userId} />;
 }
 
-export function OverlordWorld({ companyId, userId, deathEveryMs }: { companyId: string; userId: string | null; deathEveryMs?: [number, number] }) {
+export function OverlordWorld({ companyId, userId, deathEveryMs, siteOverrides }: {
+  companyId: string;
+  userId: string | null;
+  deathEveryMs?: [number, number];
+  /** Pin agents to rooms (agent id -> site); the dev harness uses it for its full-house view. */
+  siteOverrides?: Record<string, SiteId>;
+}) {
   const { world, events, error, loading, refresh } = useWorld(companyId);
   const engine = useRef<OverlordEngine | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
@@ -25,7 +31,7 @@ export function OverlordWorld({ companyId, userId, deathEveryMs }: { companyId: 
 
   return (
     <div className="ol-root">
-      <WorldView world={world} events={events} onSelect={setSelected} engineRef={engine} deathEveryMs={deathEveryMs}>
+      <WorldView world={world} events={events} onSelect={setSelected} engineRef={engine} deathEveryMs={deathEveryMs} overrides={siteOverrides}>
         <Ticker world={world} events={events.map((x) => x.ev)} />
         <div className="ol-hud">
           {world && <span className="ol-chip">{world.agents.filter((a) => a.status === "running").length} toiling / {world.agents.length} owned</span>}
