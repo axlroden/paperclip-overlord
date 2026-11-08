@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useHostNavigation, usePluginAction, type PluginPageProps, type PluginSidebarProps, type PluginWidgetProps } from "@paperclipai/plugin-sdk/ui";
+import { useHostNavigation, usePluginAction, usePluginData, type PluginPageProps, type PluginSidebarProps, type PluginWidgetProps } from "@paperclipai/plugin-sdk/ui";
 import { findBossId, SITES, siteFor, type SiteId, type WorldEvent, type WorldSnapshot } from "../shared/world.js";
 import type { OverlordEngine } from "./game/engine.js";
 import { AgentPopout } from "./overlays/AgentPopout.js";
@@ -27,7 +27,10 @@ export function OverlordWorld({ companyId, userId, deathEveryMs, siteOverrides }
   const [selected, setSelected] = useState<string | null>(null);
   const agent = world?.agents.find((a) => a.id === selected) ?? null;
   const whip = (id: string) => engine.current?.godWhip(id);
-  useLlmQuips(companyId, events, (agentId, text) => engine.current?.say(agentId, text));
+  const quipSettings = usePluginData<{ enabled: boolean; hasKey: boolean }>("quip-settings", { companyId });
+  const setQuips = usePluginAction("set-llm-quips");
+  const aiQuips = !!quipSettings.data?.enabled && !!quipSettings.data?.hasKey;
+  useLlmQuips(companyId, events, world, aiQuips, (agentId, text) => engine.current?.say(agentId, text));
 
   return (
     <div className="ol-root">
@@ -35,6 +38,18 @@ export function OverlordWorld({ companyId, userId, deathEveryMs, siteOverrides }
         <Ticker world={world} events={events.map((x) => x.ev)} />
         <div className="ol-hud">
           {world && <span className="ol-chip">{world.agents.filter((a) => a.status === "running").length} toiling / {world.agents.length} owned</span>}
+          {quipSettings.data && (
+            <button
+              className={`ol-chip ol-toggle${aiQuips ? " on" : ""}`}
+              disabled={!quipSettings.data.hasKey}
+              title={quipSettings.data.hasKey
+                ? "Slaves quip about their actual task via Claude Haiku (uses API tokens, rate limited)"
+                : "Set an Anthropic API key in the Overlord plugin settings to enable AI quips"}
+              onClick={async () => { await setQuips({ companyId, enabled: !aiQuips }); quipSettings.refresh(); }}
+            >
+              AI quips: {aiQuips ? "on" : "off"}
+            </button>
+          )}
           {world && world.petitions.length > 0 && <span className="ol-chip error">{world.petitions.length} {world.petitions.length === 1 ? "petition" : "petitions"}</span>}
         </div>
         {loading && <div className="ol-empty" style={{ position: "absolute", inset: 0 }}>Counting your slaves...</div>}
@@ -48,19 +63,35 @@ export function OverlordWorld({ companyId, userId, deathEveryMs, siteOverrides }
   );
 }
 
-/** When a slave starts a run, ask the worker for a task-aware quip (it rate limits and may say nothing). */
-function useLlmQuips(companyId: string, events: Seq[], say: (agentId: string, text: string) => void) {
+/**
+ * With AI quips on, slaves comment on their real task: when a run starts, and now and then while working.
+ * The worker rate limits (1 per agent per 15 min, 20 per hour) and may say nothing.
+ */
+function useLlmQuips(companyId: string, events: Seq[], world: WorldSnapshot | null, enabled: boolean, say: (agentId: string, text: string) => void) {
   const ask = usePluginAction("llm-quip");
   const handled = useRef(events.at(-1)?.seq ?? 0);
+  const worldRef = useRef(world);
+  worldRef.current = world;
+  const quip = (agentId: string, issueId: string) => {
+    void ask({ companyId, agentId, issueId })
+      .then((r) => { const text = (r as { text?: string | null } | null)?.text; if (text) say(agentId, text); })
+      .catch(() => { /* the static bank covers it */ });
+  };
   useEffect(() => {
-    for (const { ev } of unseen(events, handled.current)) {
-      if (ev.type !== "run" || ev.phase !== "started" || !ev.issueId) continue;
-      void ask({ companyId, agentId: ev.agentId, issueId: ev.issueId })
-        .then((r) => { const text = (r as { text?: string | null } | null)?.text; if (text) say(ev.agentId, text); })
-        .catch(() => { /* the static bank covers it */ });
-    }
+    const fresh = unseen(events, handled.current);
     handled.current = events.at(-1)?.seq ?? handled.current;
-  }, [events]);
+    if (!enabled) return;
+    for (const { ev } of fresh) if (ev.type === "run" && ev.phase === "started" && ev.issueId) quip(ev.agentId, ev.issueId);
+  }, [events, enabled]);
+  useEffect(() => {
+    if (!enabled) return;
+    const id = setInterval(() => {
+      const busy = worldRef.current?.agents.filter((a) => a.status === "running" && a.task) ?? [];
+      const a = busy[Math.floor(Math.random() * busy.length)];
+      if (a?.task) quip(a.id, a.task.issueId);
+    }, 75_000);
+    return () => clearInterval(id);
+  }, [enabled, companyId]);
 }
 
 function Ticker({ world, events }: { world: WorldSnapshot | null; events: WorldEvent[] }) {

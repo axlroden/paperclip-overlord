@@ -173,6 +173,16 @@ const plugin = definePlugin({
       );
     });
 
+    ctx.data.register("quip-settings", async (params) => {
+      const { enabled, hasKey } = await quips.settings(str(params.companyId, "companyId"));
+      return { enabled, hasKey };
+    });
+    ctx.actions.register("set-llm-quips", async (params, context) => {
+      actorUser(context);
+      await quips.setEnabled(company(params, context), params.enabled === true);
+      return { enabled: params.enabled === true };
+    });
+
     // Task-aware quip on demand; null when disabled, rate limited or failing (UI falls back to the bank).
     ctx.actions.register("llm-quip", async (params, context) => {
       actorUser(context);

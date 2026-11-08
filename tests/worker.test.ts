@@ -60,6 +60,16 @@ describe("commands", () => {
 });
 
 describe("llm quips", () => {
+  it("the in-world switch is stored per company and overrides the settings default", async () => {
+    const actor = { actor: { userId: "alex" } as never, companyId: CO };
+    expect(await h.getData("quip-settings", { companyId: CO })).toEqual({ enabled: false, hasKey: false });
+    await h.performAction("set-llm-quips", { companyId: CO, enabled: true }, actor);
+    expect(await h.getData("quip-settings", { companyId: CO })).toEqual({ enabled: true, hasKey: false });
+    // switched on but no key: still silent
+    const r = await h.performAction<{ text: string | null }>("llm-quip", { companyId: CO, agentId: "a", issueId: "i1" }, actor);
+    expect(r.text).toBeNull();
+  });
+
   it("stays silent unless enabled with a key", async () => {
     const r = await h.performAction<{ text: string | null }>("llm-quip", { companyId: CO, agentId: "a", issueId: "i1" }, { actor: { userId: "alex" } as never, companyId: CO });
     expect(r.text).toBeNull();

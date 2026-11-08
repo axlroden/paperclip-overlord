@@ -48,3 +48,6 @@
 .ol-sidebar-link i { width: 14px; height: 14px; background: linear-gradient(#feae34 0 40%, #e43b44 40% 60%, #feae34 60%); display: inline-block; image-rendering: pixelated; }
 @media (prefers-reduced-motion: reduce) { .ol-bubble { animation: none; } }
 .ol-stage[data-error]::after { content: "The Overlord stumbled: " attr(data-error); position: absolute; inset: 40% 10% auto; color: #fee761; text-align: center; font-family: var(--ol-font); }
+.ol-toggle { border: 0; cursor: pointer; font-family: var(--ol-font); }
+.ol-toggle.on { background: #3e8948; }
+.ol-toggle:disabled { cursor: not-allowed; opacity: 0.6; }

@@ -12,8 +12,23 @@ interface SecretRef { type: "secret_ref"; secretId: string; version?: number | "
 const isSecretRef = (v: unknown): v is SecretRef =>
   !!v && typeof v === "object" && (v as SecretRef).type === "secret_ref" && typeof (v as SecretRef).secretId === "string";
 
-/** Occasional task-aware quips. Silently does nothing unless enabled with an API key in company config. */
+/** Occasional task-aware quips. Silently does nothing unless switched on and an API key is configured. */
 export function createLlmQuips(ctx: PluginContext) {
+  const toggleKey = (companyId: string) => ({ scopeKind: "company" as const, scopeId: companyId, stateKey: "llmQuips" });
+
+  /** The in-world switch (plugin state) wins over the settings default; a key must exist either way. */
+  async function settings(companyId: string): Promise<{ enabled: boolean; hasKey: boolean; key: SecretRef | null }> {
+    const config = await ctx.config.get(companyId);
+    const key = isSecretRef(config.anthropicApiKey) ? config.anthropicApiKey : null;
+    const toggled = await ctx.state.get(toggleKey(companyId));
+    const enabled = typeof toggled === "boolean" ? toggled : config.llmQuips === true;
+    return { enabled, hasKey: !!key, key };
+  }
+
+  async function setEnabled(companyId: string, enabled: boolean) {
+    await ctx.state.set(toggleKey(companyId), enabled);
+  }
+
   const lastByAgent = new Map<string, number>();
   const recentByCompany = new Map<string, number[]>();
 
@@ -29,13 +44,13 @@ export function createLlmQuips(ctx: PluginContext) {
     const now = Date.now();
     if (!allowed(companyId, agentId, now)) return null;
     try {
-      const config = await ctx.config.get(companyId);
-      if (config.llmQuips !== true || !isSecretRef(config.anthropicApiKey)) return null;
+      const { enabled, key: secret } = await settings(companyId);
+      if (!enabled || !secret) return null;
       lastByAgent.set(agentId, now);
       recentByCompany.get(companyId)?.push(now);
       const issue = await ctx.issues.get(issueId, companyId);
       if (!issue) return null;
-      const key = await ctx.secrets.resolve(config.anthropicApiKey, { companyId, configPath: "anthropicApiKey" });
+      const key = await ctx.secrets.resolve(secret, { companyId, configPath: "anthropicApiKey" });
       const res = await ctx.http.fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
@@ -57,5 +72,5 @@ export function createLlmQuips(ctx: PluginContext) {
     }
   }
 
-  return { quipFor };
+  return { quipFor, settings, setEnabled };
 }

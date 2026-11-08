@@ -12,7 +12,7 @@ const log = (...a: unknown[]) => console.debug("[harness]", ...a);
 function usePluginData(key: string, p?: Record<string, unknown>) {
   const [data, setData] = useState<unknown>(null);
   const issueId = p?.issueId ?? null;
-  const load = useCallback(() => setData(key === "world" ? sim.snapshot() : sim.detail(issueId as string | null)), [key, issueId]);
+  const load = useCallback(() => setData(key === "world" ? sim.snapshot() : key === "quip-settings" ? { enabled: sim.aiQuips, hasKey: true } : sim.detail(issueId as string | null)), [key, issueId]);
   useEffect(load, [load]);
   return { data, loading: data === null, error: null, refresh: load };
 }

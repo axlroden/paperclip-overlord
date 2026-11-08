@@ -3,7 +3,7 @@ import type { PaperclipPluginManifestV1 } from "@paperclipai/plugin-sdk";
 const manifest: PaperclipPluginManifestV1 = {
   id: "axlroden.paperclip-overlord",
   apiVersion: 1,
-  version: "0.5.1",
+  version: "0.5.2",
   displayName: "Overlord",
   description: "Pixel-art god-game control room: watch your agents toil and whip them into action.",
   author: "Alex Rodenberg",
@@ -23,6 +23,8 @@ const manifest: PaperclipPluginManifestV1 = {
     "approvals.read",
     "approvals.respond",
     "http.outbound",
+    "plugin.state.read",
+    "plugin.state.write",
     "secrets.read-ref",
     "ui.page.register",
     "ui.dashboardWidget.register",
@@ -38,7 +40,7 @@ const manifest: PaperclipPluginManifestV1 = {
       llmQuips: {
         type: "boolean",
         title: "LLM quips",
-        description: "Occasionally ask Claude Haiku for a task-aware quip (max 1 per agent per 15 min, 20 per hour).",
+        description: "Default for task-aware Claude Haiku quips (max 1 per agent per 15 min, 20 per hour). The AI quips switch in the Overlord view overrides it per company.",
         default: false,
       },
       anthropicApiKey: {

@@ -24,6 +24,8 @@ export class Simulator {
   private listeners = new Set<Listener>();
   private n = 0;
 
+  aiQuips = false;
+
   /** Agent id -> site, so the harness can pin workers to rooms (full-house mode). */
   readonly overrides: Record<string, SiteId> = {};
 
@@ -108,6 +110,7 @@ export class Simulator {
 
   // ---- actions (mirror the worker's action keys)
   act(key: string, params: Record<string, unknown>) {
+    if (key === "set-llm-quips") { this.aiQuips = params.enabled === true; return { enabled: this.aiQuips }; }
     if (key === "llm-quip") return { text: Math.random() < 0.3 ? `${String(params.issueId)}? I was born for this. Sadly.` : null };
     const a = this.agents.find((x) => x.id === params.agentId || x.task?.issueId === params.issueId);
     if (key === "decide-approval" || key === "respond-interaction" || (key === "reply" && params.issueId)) {
