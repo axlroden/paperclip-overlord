@@ -1,6 +1,6 @@
 {
   "name": "@axlroden/paperclip-overlord",
-  "version": "0.5.2",
+  "version": "0.5.3",
   "type": "module",
   "private": true,
   "description": "Pixel-art god-game control room for Paperclip: watch and command your agents",
