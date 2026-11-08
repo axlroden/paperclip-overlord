@@ -35,7 +35,7 @@ export function OverlordWorld({ companyId, userId, deathEveryMs, siteOverrides }
   return (
     <div className="ol-root">
       <WorldView world={world} events={events} onSelect={setSelected} engineRef={engine} deathEveryMs={deathEveryMs} overrides={siteOverrides}>
-        <Ticker world={world} events={events.map((x) => x.ev)} />
+        <Ticker world={world} events={events.map((x) => x.ev)}>
         <div className="ol-hud">
           {world && <span className="ol-chip">{world.agents.filter((a) => a.status === "running").length} toiling / {world.agents.length} owned</span>}
           {quipSettings.data && (
@@ -52,6 +52,7 @@ export function OverlordWorld({ companyId, userId, deathEveryMs, siteOverrides }
           )}
           {world && world.petitions.length > 0 && <span className="ol-chip error">{world.petitions.length} {world.petitions.length === 1 ? "petition" : "petitions"}</span>}
         </div>
+        </Ticker>
         {loading && <div className="ol-empty" style={{ position: "absolute", inset: 0 }}>Counting your slaves...</div>}
         {error && !world && <div className="ol-empty" style={{ position: "absolute", inset: 0 }}>The Overlord's eye is clouded: {error.message}</div>}
       </WorldView>
@@ -94,7 +95,7 @@ function useLlmQuips(companyId: string, events: Seq[], world: WorldSnapshot | nu
   }, [enabled, companyId]);
 }
 
-function Ticker({ world, events }: { world: WorldSnapshot | null; events: WorldEvent[] }) {
+function Ticker({ world, events, children }: { world: WorldSnapshot | null; events: WorldEvent[]; children?: React.ReactNode }) {
   const lines = useMemo(() => {
     if (!world) return [];
     const name = (id: string | null) => world.agents.find((a) => a.id === id)?.name ?? "A slave";
@@ -117,6 +118,7 @@ function Ticker({ world, events }: { world: WorldSnapshot | null; events: WorldE
     <div className="ol-ticker" aria-live="polite">
       <b>OVERSEER'S LOG</b>
       {lines.map((l, i) => <span key={i}>{l}</span>)}
+      {children}
     </div>
   );
 }

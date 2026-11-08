@@ -144,10 +144,10 @@ export function buildScenery(cast: Spritesheet): Scenery {
   const background = new Container();
   const foreground = new Container();
   const bars: Sprite[] = [];
-  const coarse = (key: string, b: Box, fn: (r: R) => void) => {
+  const coarse = (key: string, b: Box, fn: (r: R) => void, layer = background) => {
     const s = new Sprite(tex(`scene:${key}`, b.w, b.h, (r) => fn((x, y, w, h, c) => r(x - b.x, y - b.y, w, h, c))));
     s.position.set(b.x, b.y);
-    background.addChild(s);
+    layer.addChild(s);
   };
   const backdrop = (name: string, b: Box) => {
     const t = cast.textures[`bg-${name}/0`];
@@ -164,7 +164,7 @@ export function buildScenery(cast: Spritesheet): Scenery {
   background.addChild(machine);
 
   backdrop("dispatch", ATC);
-  coarse("atc-frame", ATC, (r) => frame(r, ATC, "DISPATCH"));
+  coarse("atc-frame", ATC, (r) => frame(r, ATC, "DISPATCH"), foreground);
 
   for (let row = 0; row < CELL_ROWS; row++) for (let col = 0; col < CELLS_PER_ROW; col++) {
     backdrop("prison-cell", { x: PRISON.x + 2 + col * CELL_W, y: PRISON.y + row * CELL_H, w: CELL_W, h: CELL_H });
@@ -185,12 +185,12 @@ export function buildScenery(cast: Spritesheet): Scenery {
   }
 
   backdrop("petitions", ALTAR);
-  coarse("altar-frame", ALTAR, (r) => frame(r, ALTAR, "PETITIONS"));
+  coarse("altar-frame", ALTAR, (r) => frame(r, ALTAR, "PETITIONS"), foreground);
 
   for (const s of SITES) {
     const b = SITE_BOXES[s.id];
     backdrop(s.id === "token-refinery" && cast.textures["bg-machine-god/0"] ? "machine-god" : s.id, b);
-    coarse(`site-frame-${s.id}`, b, (r) => frame(r, b, s.name.toUpperCase()));
+    coarse(`site-frame-${s.id}`, b, (r) => frame(r, b, s.name.toUpperCase()), foreground); // above the spinning wheels and the actors
   }
   coarse("ticker", { x: 0, y: TICKER_Y, w: W, h: H - TICKER_Y }, (r) => r(0, TICKER_Y, W, H - TICKER_Y, C.ink));
   return { background, foreground, props: [], bars };
