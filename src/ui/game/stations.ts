@@ -30,7 +30,7 @@ export const STATIONS: Record<SiteId, Station> = {
   // smash the boulder piles
   quarry: { strike: "chips", impact: 4, slots: [s(84, 78, -1, [-14, 14]), s(104, 76, 1, [14, 14]), s(60, 80, -1, [-14, 14]), s(132, 76, 1, [14, 14])] },
   // running inside the two great wheels, extra hands in the server aisle
-  treadwheel: { strike: "power", impact: 2, slots: [s(54, 70, 1, [0, 30]), s(202, 72, 1, [0, 30]), s(125, 84, 1, [0, 30])] },
+  treadwheel: { strike: "power", impact: 3, slots: [s(54, 70, 1, [0, 30]), s(202, 72, 1, [0, 30]), s(125, 84, 1, [0, 30])] },
   // ladle at the molten pour, hammer at the anvils; new steel lands on the rack
   foundry: { strike: "sparks", impact: 4, sink: [204, 60], slots: [s(94, 82, 1, [16, 14]), s(146, 82, -1, [-16, 14]), s(62, 82, 1, [14, 20]), s(178, 82, -1, [-14, 20])] },
   // wading in the sludge channel

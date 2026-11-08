@@ -62,7 +62,7 @@ const RAGS = [null, 210, 120, 0, 280, 190, 330, 55] as const;
 
 const WORK_ANIM: Record<SiteId, string> = {
   "coal-mine": "work-coal-mine/east", sweatshop: "work-sweatshop/east", quarry: "work-quarry/east",
-  treadwheel: "work-treadwheel/east", foundry: "work-foundry/east", sewer: "work-sewer/east",
+  treadwheel: "run/east", foundry: "work-foundry/east", sewer: "work-sewer/east", // the generated treadwheel loop barely moves its legs
   "token-refinery": "work-refinery/east",
 };
 
@@ -219,7 +219,8 @@ export class OverlordEngine {
   private castFrames(name: string): Texture[] {
     const f = this.art.cast.animations[name];
     if (!f) throw new Error(`cast has no animation ${name}`);
-    return f;
+    // the generated sprint starts from a standing pose; looping it would hitch every cycle
+    return name === "run/east" ? f.slice(1) : f;
   }
 
   private castTex(name: string): Texture {
